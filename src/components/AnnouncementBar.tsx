@@ -7,23 +7,23 @@ export default function AnnouncementBar() {
   const announcements = [
     {
       icon: <Phone className="w-4 h-4 text-pink-600" />,
-      text: "📞 Contáctanos: +51 919 642 610",
+      text: " Contáctanos: +51 919 642 610",
     },
     {
       icon: <Mail className="w-4 h-4 text-pink-600" />,
-      text: "✉️ floresydetalleslima1@gmail.com",
+      text: " floresydetalleslima1@gmail.com",
     },
     {
       icon: <Truck className="w-4 h-4 text-pink-600" />,
-      text: "🚚 Envío GRATIS a Canto Rey y zonas aledañas",
+      text: " Envío GRATIS a Canto Rey y zonas aledañas",
     },
     {
       icon: null,
-      text: "🕐 Horario: Lun - Dom 8:00 AM - 10:00 PM",
+      text: " Horario: Lun - Dom 8:00 AM - 10:00 PM",
     },
     {
       icon: null,
-      text: "🌹 Flores frescas diarias - Calidad garantizada",
+      text: " Flores frescas diarias - Calidad garantizada",
     },
   ];
 
