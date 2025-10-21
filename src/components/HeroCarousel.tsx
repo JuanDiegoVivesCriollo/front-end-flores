@@ -6,22 +6,22 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const heroSlides = [
   {
     id: 1,
-    imageDesktop: "/img/4_1.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/4_1.webp",
     imageMobile: "/img/MobileImagenesCarrusel/svdsoaes6s021sfizorj.webp",
   },
   {
     id: 2,
-    imageDesktop: "/img/imgcarrusel6.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/imgcarrusel6.webp",
     imageMobile: "/img/MobileImagenesCarrusel/imgCarrusel6Mobile.webp",
   },
   {
     id: 3,
-    imageDesktop: "/img/imgcarrusel7.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/imgcarrusel7.webp",
     imageMobile: "/img/MobileImagenesCarrusel/imgCarrusel7Mobile.webp",
   },
   {
     id: 4,
-    imageDesktop: "/img/imgcarrusel8.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/imgcarrusel8.webp",
     imageMobile: "/img/MobileImagenesCarrusel/imgCarrusel8Mobile.webp.webp",
   }
 ];
