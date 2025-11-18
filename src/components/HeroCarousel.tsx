@@ -2,27 +2,29 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
+import Link from "next/link";
 
 const heroSlides = [
   {
     id: 1,
-    imageDesktop: "/img/desktopimgenesCarrusel/4_1.webp",
-    imageMobile: "/img/MobileImagenesCarrusel/svdsoaes6s021sfizorj.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/1_1.webp", // Ahora esta es la primera imagen
+    imageMobile: "/img/MobileImagenesCarrusel/kqheuon7acbj7is20j7u.webp",
   },
   {
     id: 2,
-    imageDesktop: "/img/desktopimgenesCarrusel/imgcarrusel6.webp",
-    imageMobile: "/img/MobileImagenesCarrusel/imgCarrusel6Mobile.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/4_1.webp", // Ahora esta es la segunda imagen
+    imageMobile: "/img/MobileImagenesCarrusel/Especial.webp",
   },
   {
     id: 3,
-    imageDesktop: "/img/desktopimgenesCarrusel/imgcarrusel7.webp",
-    imageMobile: "/img/MobileImagenesCarrusel/imgCarrusel7Mobile.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/2_1.webp",
+    imageMobile: "/img/MobileImagenesCarrusel/pljd2zpmndgmmqya8gip.webp",
   },
   {
     id: 4,
-    imageDesktop: "/img/desktopimgenesCarrusel/imgcarrusel8.webp",
-    imageMobile: "/img/MobileImagenesCarrusel/imgCarrusel8Mobile.webp.webp",
+    imageDesktop: "/img/desktopimgenesCarrusel/3_1.webp",
+    imageMobile: "/img/MobileImagenesCarrusel/svdsoaes6s021sfizorj.webp",
   }
 ];
 
@@ -172,7 +174,7 @@ export default function HeroCarousel() {
   return (
     <div 
       ref={containerRef}
-      className="relative h-[85vh] md:h-[75vh] overflow-hidden bg-white w-full max-w-full"
+      className="relative h-[85vh] md:h-[75vh] overflow-hidden bg-gray-100 w-full max-w-full"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       style={{ 
@@ -188,7 +190,7 @@ export default function HeroCarousel() {
       
       {/* Loading state mientras se cargan las imágenes */}
       {!imagesLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white">
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
         </div>
       )}
@@ -212,20 +214,32 @@ export default function HeroCarousel() {
           onTouchEnd={handleTouchEnd}
         >
         {/* Renderizar las slides principales */}
-        {heroSlides.map((slide) => (
+        {heroSlides.map((slide, index) => (
           <div
             key={slide.id}
-            className="min-w-full h-full flex-shrink-0 relative"
-            style={{
-              backgroundImage: `url(${isMobile ? slide.imageMobile : slide.imageDesktop})`,
-              backgroundColor: 'transparent',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center center',
-              backgroundRepeat: 'no-repeat',
-              transform: 'translateZ(0)',
-              backfaceVisibility: 'hidden',
-            }}
+            className="min-w-full h-full flex-shrink-0 relative overflow-hidden"
           >
+            {/* Usar <img> en lugar de background-image para mejor LCP */}
+            <img
+              src={isMobile ? slide.imageMobile : slide.imageDesktop}
+              alt={index === 0 ? "Flores Amarillas 21 de Septiembre - Flores y Detalles Lima" : `Arreglos florales premium - Slide ${index + 1}`}
+              className="absolute inset-0 w-full h-full object-cover object-center"
+              loading={index === 0 ? "eager" : "lazy"}
+              fetchPriority={index === 0 ? "high" : "low"}
+              decoding={index === 0 ? "sync" : "async"}
+              style={{
+                transform: 'translateZ(0)',
+                backfaceVisibility: 'hidden',
+              }}
+            />
+            
+            {/* Overlay clickeable solo para la primera imagen (index 0) */}
+            {index === 0 && (
+              <Link href="/flores-amarillas-21-septiembre" className="absolute inset-0 z-10 cursor-pointer group">
+                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300" />
+              </Link>
+            )}
+            
             {/* Solo imagen de fondo */}
           </div>
         ))}
@@ -235,34 +249,37 @@ export default function HeroCarousel() {
       {/* Controles de navegación - Solo mostrar cuando las imágenes estén cargadas */}
       {imagesLoaded && (
         <>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.4)" }}
+            whileTap={{ scale: 0.9 }}
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 backdrop-blur-sm p-3 rounded-full hover:bg-white/40 hover:scale-110 active:scale-95 transition-all z-20"
-            aria-label="Anterior"
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 backdrop-blur-sm p-3 rounded-full hover:bg-white/30 transition-all z-20"
           >
             <ChevronLeft className="w-6 h-6 text-gray-800" />
-          </button>
+          </motion.button>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.4)" }}
+            whileTap={{ scale: 0.9 }}
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/20 backdrop-blur-sm p-3 rounded-full hover:bg-white/40 hover:scale-110 active:scale-95 transition-all z-20"
-            aria-label="Siguiente"
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/20 backdrop-blur-sm p-3 rounded-full hover:bg-white/30 transition-all z-20"
           >
             <ChevronRight className="w-6 h-6 text-gray-800" />
-          </button>
+          </motion.button>
 
           {/* Indicadores */}
           <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
             {heroSlides.map((_, index) => (
-              <button
+              <motion.button
                 key={index}
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => setCurrentSlide(index)}
-                className={`w-3 h-3 rounded-full transition-all hover:scale-125 active:scale-90 ${
+                className={`w-3 h-3 rounded-full transition-all ${
                   index === currentSlide 
                     ? 'bg-pink-bright scale-125' 
                     : 'bg-gray-400 hover:bg-pink-light'
                 }`}
-                aria-label={`Ir a slide ${index + 1}`}
               />
             ))}
           </div>

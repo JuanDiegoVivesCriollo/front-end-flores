@@ -1,17 +1,28 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiClient } from '@/services/api';
+import { webAuthnService, type BiometricCredential } from '@/services/webauthn';
+import type { User } from '@/types';
 
-// Tipo de usuario básico
-interface User {
-  id?: number;
-  name?: string;
-  email?: string;
-  role?: string;
-  phone?: string;
-  address?: string;
-  city?: string;
-  postal_code?: string;
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  loginWithBiometric: (email: string) => Promise<{ success: boolean; message: string }>;
+  register: (userData: RegisterFormData) => Promise<{ success: boolean; message: string }>;
+  logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
+  updateProfile: (userData: Partial<User>) => Promise<{ success: boolean; message: string }>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
+  verifyToken: () => Promise<boolean>;
+  registerBiometric: (deviceName?: string) => Promise<{ success: boolean; message: string }>;
+  checkBiometricAvailability: (email: string) => Promise<{ available: boolean; count: number }>;
+  listBiometricCredentials: () => Promise<BiometricCredential[]>;
+  deleteBiometricCredential: (credentialId: number) => Promise<{ success: boolean; message: string }>;
+  isBiometricSupported: boolean;
+  isAdmin: boolean;
 }
 
 interface RegisterFormData {
@@ -25,32 +36,33 @@ interface RegisterFormData {
   postal_code?: string;
 }
 
-interface AuthContextType {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  register: (userData: RegisterFormData) => Promise<{ success: boolean; message: string }>;
-  logout: () => Promise<void>;
-  logoutAll: () => Promise<void>;
-  updateProfile: (userData: Partial<User>) => Promise<{ success: boolean; message: string }>;
-  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; message: string }>;
-  verifyToken: () => Promise<boolean>;
-  isAdmin: boolean;
-}
-
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+
+  // Check biometric support on mount
+  useEffect(() => {
+    const checkSupport = async () => {
+      const supported = webAuthnService.isWebAuthnSupported();
+      setIsBiometricSupported(supported);
+      
+      if (supported) {
+        const available = await webAuthnService.isPlatformAuthenticatorAvailable();
+        setIsBiometricSupported(available);
+      }
+    };
+    
+    checkSupport();
+  }, []);
 
   const verifyToken = useCallback(async (): Promise<boolean> => {
     try {
-      // Implementación básica - verificar si existe token
-      const token = localStorage.getItem('auth_token');
-      return Boolean(token);
+      const response = await apiClient.verifyToken();
+      return response.success;
     } catch (error) {
       console.error('Token verification error:', error);
       return false;
@@ -59,8 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async (): Promise<void> => {
     try {
-      // TODO: Implementar llamada a API cuando esté disponible
-      console.log('Logging out...');
+      await apiClient.logout();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
@@ -76,6 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = localStorage.getItem('auth_token');
       
       if (token) {
+        apiClient.setToken(token);
+        
+        // Verificar que el token sea válido
         const isValid = await verifyToken();
         if (!isValid) {
           localStorage.removeItem('auth_token');
@@ -83,12 +97,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Cargar datos del usuario desde localStorage
-        const storedUser = localStorage.getItem('user_data');
-        if (storedUser) {
-          const userData = JSON.parse(storedUser);
-          setUser(userData);
+        const response = await apiClient.getProfile();
+        
+        if (response.success && response.data) {
+          setUser(response.data);
           setIsAuthenticated(true);
+        } else {
+          // Token inválido
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user_data');
         }
       }
     } catch (error) {
@@ -101,10 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [verifyToken]);
 
   useEffect(() => {
+    // Verificar si el usuario está autenticado al cargar
     checkAuthStatus();
   }, [checkAuthStatus]);
 
   useEffect(() => {
+    // Configurar verificación periódica del token (cada 5 minutos)
     if (isAuthenticated) {
       const tokenCheckInterval = setInterval(async () => {
         const isValid = await verifyToken();
@@ -119,17 +138,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     try {
-      // TODO: Implementar llamada real a la API
-      console.log('Login attempt:', { email, password: '***' });
-      
-      // Simulación temporal
-      localStorage.setItem('auth_token', 'demo-token');
-      const demoUser = { name: 'Usuario Demo', email, role: 'user' };
-      localStorage.setItem('user_data', JSON.stringify(demoUser));
-      setUser(demoUser);
-      setIsAuthenticated(true);
-      
-      return { success: true, message: 'Inicio de sesión exitoso' };
+      const response = await apiClient.login(email, password);
+      if (response.success && response.data) {
+        setUser(response.data.user);
+        setIsAuthenticated(true);
+        localStorage.setItem('user_data', JSON.stringify(response.data.user));
+        return { success: true, message: 'Inicio de sesión exitoso' };
+      } else {
+        return { success: false, message: response.message || 'Error al iniciar sesión' };
+      }
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: error instanceof Error ? error.message : 'Error de conexión' };
@@ -138,25 +155,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (userData: RegisterFormData): Promise<{ success: boolean; message: string }> => {
     try {
-      // TODO: Implementar llamada real a la API
-      console.log('Register attempt:', userData);
-      
-      // Simulación temporal
-      localStorage.setItem('auth_token', 'demo-token');
-      const newUser = { 
-        name: userData.name, 
-        email: userData.email, 
-        phone: userData.phone,
-        address: userData.address,
-        city: userData.city,
-        postal_code: userData.postal_code,
-        role: 'user'
-      };
-      localStorage.setItem('user_data', JSON.stringify(newUser));
-      setUser(newUser);
-      setIsAuthenticated(true);
-      
-      return { success: true, message: 'Registro exitoso' };
+      const response = await apiClient.register(userData);
+      if (response.success && response.data) {
+        setUser(response.data.user);
+        setIsAuthenticated(true);
+        localStorage.setItem('user_data', JSON.stringify(response.data.user));
+        return { success: true, message: 'Registro exitoso' };
+      } else {
+        return { success: false, message: response.message || 'Error al registrarse' };
+      }
     } catch (error) {
       console.error('Register error:', error);
       return { success: false, message: error instanceof Error ? error.message : 'Error de conexión' };
@@ -165,8 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logoutAll = async (): Promise<void> => {
     try {
-      // TODO: Implementar llamada a API para cerrar todas las sesiones
-      console.log('Logout all sessions...');
+      await apiClient.logoutAll();
     } catch (error) {
       console.error('Logout all error:', error);
     } finally {
@@ -179,9 +185,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const changePassword = async (currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> => {
     try {
-      // TODO: Implementar llamada a API
-      console.log('Change password attempt:', { currentPassword: '***', newPassword: '***' });
-      return { success: true, message: 'Contraseña cambiada exitosamente' };
+      const response = await apiClient.changePassword(currentPassword, newPassword);
+      if (response.success) {
+        return { success: true, message: 'Contraseña cambiada exitosamente' };
+      } else {
+        return { success: false, message: response.message || 'Error al cambiar contraseña' };
+      }
     } catch (error) {
       console.error('Change password error:', error);
       return { success: false, message: error instanceof Error ? error.message : 'Error al cambiar contraseña' };
@@ -190,17 +199,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateProfile = async (userData: Partial<User>): Promise<{ success: boolean; message: string }> => {
     try {
-      // TODO: Implementar llamada a API
-      console.log('Update profile attempt:', userData);
-      
-      // Simulación temporal - actualizar usuario local
-      if (user) {
-        const updatedUser = { ...user, ...userData };
-        setUser(updatedUser);
-        localStorage.setItem('user_data', JSON.stringify(updatedUser));
+      const response = await apiClient.updateProfile(userData);
+      if (response.success && response.data) {
+        setUser(response.data);
+        localStorage.setItem('user_data', JSON.stringify(response.data));
+        return { success: true, message: 'Perfil actualizado exitosamente' };
+      } else {
+        return { success: false, message: response.message || 'Error al actualizar perfil' };
       }
-      
-      return { success: true, message: 'Perfil actualizado exitosamente' };
     } catch (error) {
       console.error('Update profile error:', error);
       return { success: false, message: error instanceof Error ? error.message : 'Error al actualizar perfil' };
@@ -209,18 +215,102 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.role === 'admin';
 
+  // Biometric authentication methods
+  const loginWithBiometric = async (email: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      const result = await webAuthnService.loginWithBiometric(email);
+      
+      if (result.success && result.data) {
+        // Set token and user data
+        apiClient.setToken(result.data.token);
+        webAuthnService.setToken(result.data.token);
+        setUser(result.data.user);
+        setIsAuthenticated(true);
+        localStorage.setItem('user_data', JSON.stringify(result.data.user));
+        
+        return { success: true, message: 'Inicio de sesión biométrico exitoso' };
+      }
+      
+      return { success: false, message: result.message || 'Error en autenticación biométrica' };
+    } catch (error) {
+      console.error('Biometric login error:', error);
+      return { success: false, message: error instanceof Error ? error.message : 'Error de conexión' };
+    }
+  };
+
+  const registerBiometric = async (deviceName?: string): Promise<{ success: boolean; message: string }> => {
+    try {
+      if (!isAuthenticated) {
+        return { success: false, message: 'Debe iniciar sesión primero' };
+      }
+
+      webAuthnService.setToken(localStorage.getItem('auth_token'));
+      const result = await webAuthnService.registerBiometric(deviceName);
+      
+      return result;
+    } catch (error) {
+      console.error('Biometric registration error:', error);
+      return { success: false, message: error instanceof Error ? error.message : 'Error registrando credencial biométrica' };
+    }
+  };
+
+  const checkBiometricAvailability = async (email: string): Promise<{ available: boolean; count: number }> => {
+    try {
+      return await webAuthnService.checkBiometricAvailability(email);
+    } catch (error) {
+      console.error('Error checking biometric availability:', error);
+      return { available: false, count: 0 };
+    }
+  };
+
+  const listBiometricCredentials = async (): Promise<BiometricCredential[]> => {
+    try {
+      if (!isAuthenticated) {
+        return [];
+      }
+
+      webAuthnService.setToken(localStorage.getItem('auth_token'));
+      const result = await webAuthnService.listCredentials();
+      
+      return result.success ? (result.data || []) : [];
+    } catch (error) {
+      console.error('Error listing biometric credentials:', error);
+      return [];
+    }
+  };
+
+  const deleteBiometricCredential = async (credentialId: number): Promise<{ success: boolean; message: string }> => {
+    try {
+      if (!isAuthenticated) {
+        return { success: false, message: 'Debe iniciar sesión primero' };
+      }
+
+      webAuthnService.setToken(localStorage.getItem('auth_token'));
+      return await webAuthnService.deleteCredential(credentialId);
+    } catch (error) {
+      console.error('Error deleting biometric credential:', error);
+      return { success: false, message: error instanceof Error ? error.message : 'Error eliminando credencial' };
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
       isAuthenticated, 
       isLoading,
-      login, 
+      login,
+      loginWithBiometric,
       register,
       logout,
       logoutAll,
       updateProfile,
       changePassword,
       verifyToken,
+      registerBiometric,
+      checkBiometricAvailability,
+      listBiometricCredentials,
+      deleteBiometricCredential,
+      isBiometricSupported,
       isAdmin
     }}>
       {children}

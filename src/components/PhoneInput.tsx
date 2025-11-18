@@ -56,20 +56,6 @@ export default function PhoneInput({
     }
   }, [value, displayValue]);
 
-  // Validar automáticamente si el valor inicial ya está completo (autocompletado)
-  useEffect(() => {
-    const cleanValue = cleanPhoneForApi(value);
-    if (cleanValue.length === 9 && !isTouched) {
-      const result = validatePeruvianPhone(value);
-      if (result.isValid) {
-        setIsValid(true);
-        setIsTouched(true);
-        setError('');
-        onChange(cleanValue, true);
-      }
-    }
-  }, [value, isTouched, onChange]);
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let inputValue = e.target.value;
     
@@ -101,18 +87,42 @@ export default function PhoneInput({
     }
   };
 
+  const handleFocus = () => {
+    if (!isTouched) {
+      setIsTouched(true);
+    }
+  };
+
+  // Determinar el icono y color
+  const getInputState = () => {
+    if (disabled) {
+      return { icon: Phone, color: 'text-gray-400' };
+    }
+    
+    if (error && isTouched) {
+      return { icon: AlertCircle, color: 'text-red-500' };
+    }
+    
+    if (isValid && isTouched) {
+      return { icon: CheckCircle, color: 'text-green-500' };
+    }
+    
+    return { icon: Phone, color: 'text-gray-400' };
+  };
+
+  const { icon: Icon, color } = getInputState();
+  
   return (
-    <div className="w-full">
+    <div className="relative">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          {label} {required && <span className="text-red-500">*</span>}
         </label>
       )}
       
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Phone className="h-5 w-5 text-gray-400" />
+          <Icon className={`h-4 w-4 sm:h-5 sm:w-5 ${color}`} />
         </div>
         
         <input
@@ -120,35 +130,51 @@ export default function PhoneInput({
           value={displayValue}
           onChange={handleInputChange}
           onBlur={handleBlur}
+          onFocus={handleFocus}
           placeholder={placeholder}
           disabled={disabled}
-          className={`${className} ${
-            isTouched && error 
-              ? 'border-red-300 focus:border-red-500 focus:ring-red-500' 
-              : isTouched && isValid
-              ? 'border-green-300 focus:border-green-500 focus:ring-green-500'
-              : ''
-          }`}
-          required={required}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
+          inputMode="numeric"
+          pattern="[0-9\s]*"
+          className={`
+            block w-full pl-9 sm:pl-10 pr-3 py-2 border rounded-lg text-sm sm:text-base
+            focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500
+            disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
+            ${error && isTouched 
+              ? 'border-red-300 text-red-900 placeholder-red-300' 
+              : isValid && isTouched 
+                ? 'border-green-300 text-green-900' 
+                : 'border-gray-300 text-gray-900'
+            }
+            ${className}
+          `}
         />
-        
-        {isTouched && (isValid || error) && (
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-            {isValid ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-500" />
-            )}
-          </div>
-        )}
       </div>
       
-      {isTouched && error && (
-        <p className="mt-1 text-sm text-red-600">{error}</p>
+      {/* Mensaje de error - Mobile Optimized */}
+      {error && isTouched && (
+        <p className="mt-1 text-xs sm:text-sm text-red-600 flex items-center">
+          <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+          <span className="break-words">{error}</span>
+        </p>
       )}
       
-      {isTouched && isValid && (
-        <p className="mt-1 text-sm text-green-600">✓ Número válido</p>
+      {/* Mensaje de éxito - Mobile Optimized */}
+      {isValid && isTouched && !error && (
+        <p className="mt-1 text-xs sm:text-sm text-green-600 flex items-center">
+          <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 flex-shrink-0" />
+          Número válido
+        </p>
+      )}
+      
+      {/* Ayuda de formato - Mobile Optimized */}
+      {!isTouched && (
+        <p className="mt-1 text-xs text-gray-500">
+          Formato: 987 654 321 (9 dígitos, debe empezar con 9)
+        </p>
       )}
     </div>
   );

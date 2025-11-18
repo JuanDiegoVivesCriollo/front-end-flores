@@ -1,0 +1,9 @@
+# Security contact for Flores y Detalles Lima
+# https://securitytxt.org/
+
+Contact: mailto:info@floresydetalleslima.com
+Contact: https://floresydetalleslima.com/contacto
+Expires: 2026-12-31T23:59:59.000Z
+Acknowledgments: https://floresydetalleslima.com/security-acknowledgments
+Preferred-Languages: es, en
+Canonical: https://floresydetalleslima.com/.well-known/security.txt

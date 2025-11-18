@@ -135,20 +135,6 @@ export const occasions: Occasion[] = [
     heroDescription: 'Demuestra tu amor y gratitud hacia mamá con los arreglos florales más tiernos y especiales.'
   },
   {
-    label: 'Solo porque sí',
-    value: 'solo-porque-si',
-    icon: Smile,
-    color: 'from-pink-100 to-rose-200',
-    backgroundImage: '/img/FondosParaOcasiones/FloresDeAMor.webp',
-    heroTitle: 'Flores Solo Porque Sí',
-    heroSubtitle: 'Los gestos espontáneos son los más hermosos',
-    heroDescription: 'Sorprende con un gesto espontáneo de cariño. No necesitas una ocasión especial para alegrar el día de alguien.'
-  }
-];
-
-// Ocasiones de condolencias
-export const condolenciasOccasions: Occasion[] = [
-  {
     label: 'Lágrimas de Piso',
     value: 'lagrimas-piso',
     icon: Ribbon,
@@ -187,13 +173,18 @@ export const condolenciasOccasions: Occasion[] = [
     heroTitle: 'Trípodes',
     heroSubtitle: 'Arreglos en trípodes elegantes',
     heroDescription: 'Arreglos florales montados en estructura de trípode para ceremonias especiales.'
+  },
+  {
+    label: 'Solo porque sí',
+    value: 'solo-porque-si',
+    icon: Smile,
+    color: 'from-pink-100 to-rose-200',
+    backgroundImage: '/img/FondosParaOcasiones/FloresDeAMor.webp', // Usando imagen de amor como fallback
+    heroTitle: 'Flores Solo Porque Sí',
+    heroSubtitle: 'Los gestos espontáneos son los más hermosos',
+    heroDescription: 'Sorprende con un gesto espontáneo de cariño. No necesitas una ocasión especial para alegrar el día de alguien.'
   }
 ];
-
-// Ocasiones regulares (sin condolencias)
-export const regularOccasions: Occasion[] = occasions.filter(o => 
-  !['lagrimas-piso', 'mantos-especiales', 'coronas', 'tripodes'].includes(o.value)
-);
 
 // Mapeo inverso para URL a ocasiones
 export const occasionMapping: Record<string, string> = occasions.reduce((acc, occasion) => {
@@ -216,3 +207,16 @@ export const getOccasionByValue = (value: string): Occasion | undefined => {
 export const getOccasionByLabel = (label: string): Occasion | undefined => {
   return occasions.find(o => o.label === label);
 };
+
+// Ocasiones de condolencias separadas
+export const condolenciasOccasions: Occasion[] = [
+  occasions.find(o => o.value === 'lagrimas-piso')!,
+  occasions.find(o => o.value === 'mantos-especiales')!,
+  occasions.find(o => o.value === 'coronas')!,
+  occasions.find(o => o.value === 'tripodes')!
+];
+
+// Ocasiones regulares (sin condolencias)
+export const regularOccasions: Occasion[] = occasions.filter(o => 
+  !['lagrimas-piso', 'mantos-especiales', 'coronas', 'tripodes'].includes(o.value)
+);

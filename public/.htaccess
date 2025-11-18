@@ -1,0 +1,146 @@
+# 🔥 HTACCESS OPTIMIZADO PARA IZIPAY + CORS SOLUTIONS
+# Configuración para Next.js con Izipay Integration - HOSTINGER
+# UPDATED: Soporte para nuevo SDK de Izipay (checkout.izipay.pe)
+
+# ================================
+# SOLUCIÓN CORS PARA IZIPAY SDK
+# ================================
+<IfModule mod_headers.c>
+    # Permitir proxy requests para evitar CORS en algunos casos
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    
+    # CSP ultra-permisivo para Izipay SDK con múltiples dominios
+    Header always set Content-Security-Policy "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https: https://api.micuentaweb.pe https://secure.micuentaweb.pe https://static.micuentaweb.pe https://checkout.izipay.pe https://static.izipay.pe https://api.izipay.pe https://secure.izipay.pe https://h.online-metrix.net https://h64.online-metrix.net https://api.payzen.eu https://secure.payzen.eu; style-src 'self' 'unsafe-inline' data: blob: https: https://fonts.googleapis.com https://api.micuentaweb.pe https://secure.micuentaweb.pe https://checkout.izipay.pe https://static.izipay.pe https://api.izipay.pe https://secure.izipay.pe; font-src 'self' 'unsafe-inline' data: blob: https: https://fonts.gstatic.com https://api.micuentaweb.pe https://secure.micuentaweb.pe https://checkout.izipay.pe https://static.izipay.pe https://api.izipay.pe https://secure.izipay.pe; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https: wss: https://api.micuentaweb.pe https://secure.micuentaweb.pe https://static.micuentaweb.pe https://checkout.izipay.pe https://static.izipay.pe https://api.izipay.pe https://secure.izipay.pe https://h.online-metrix.net https://h64.online-metrix.net https://api.payzen.eu https://secure.payzen.eu https://xn--floresdejazmnflorera-04bh.com; frame-src 'self' data: blob: https: https://api.micuentaweb.pe https://secure.micuentaweb.pe https://checkout.izipay.pe https://static.izipay.pe https://api.izipay.pe https://secure.izipay.pe https://h.online-metrix.net https://h64.online-metrix.net https://api.payzen.eu https://secure.payzen.eu; child-src 'self' data: blob: https:; object-src 'none'; media-src 'self' data: blob: https:; worker-src 'self' blob:; form-action 'self' https: https://api.micuentaweb.pe https://secure.micuentaweb.pe https://checkout.izipay.pe https://static.izipay.pe https://api.izipay.pe https://secure.izipay.pe;"
+    
+    # Headers de seguridad pero más permisivos
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Headers específicos para SDK loading
+    Header always set Cross-Origin-Embedder-Policy "unsafe-none"
+    Header always set Cross-Origin-Resource-Policy "cross-origin"
+</IfModule>
+
+# ================================
+# NEXT.JS STATIC EXPORT CONFIG
+# ================================
+RewriteEngine On
+
+# Excluir rutas de API para evitar conflictos
+RewriteCond %{REQUEST_URI} !^/api/
+
+# Redirigir index.html a raíz
+RewriteRule ^index\.html$ / [R=301,L]
+
+# Servir archivos estáticos directamente si existen
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^.*$ - [L]
+
+# Servir directorios directamente si existen
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^.*$ - [L]
+
+# Para rutas que NO son archivos ni directorios existentes:
+# 1. Primero intentar con .html
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+RewriteRule ^([^/]+)/?$ /$1.html [L]
+
+# 2. Luego intentar con index.html en subdirectorio
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+RewriteRule ^([^/]+)/?$ /$1/index.html [L]
+
+# 3. Fallback final a index.html (SPA routing)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^.*$ /index.html [L]
+
+# ================================
+# OPTIMIZACIÓN DE RENDIMIENTO
+# ================================
+
+# Enable compression (GZIP)
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# Cache static assets con tiempos eficientes
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # CSS y JavaScript versionados por Next.js - 1 año con immutable
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType application/x-javascript "access plus 1 year"
+    
+    # Imágenes - 1 año con immutable
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/x-icon "access plus 1 year"
+    
+    # Fuentes - 1 año
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    
+    # HTML - Sin caché
+    ExpiresByType text/html "access plus 0 seconds"
+    
+    # JSON - 1 día
+    ExpiresByType application/json "access plus 1 day"
+</IfModule>
+
+# Headers de caché inmutables para mejor rendimiento
+<IfModule mod_headers.c>
+    # CSS y JavaScript con hash - inmutables
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    
+    # Imágenes - inmutables
+    <FilesMatch "\.(jpg|jpeg|png|gif|webp|svg|ico)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    
+    # Fuentes - inmutables
+    <FilesMatch "\.(ttf|otf|woff|woff2|eot)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+    
+    # HTML - no caché
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
+
+# Error pages
+ErrorDocument 404 /404.html
+ErrorDocument 500 /500.html

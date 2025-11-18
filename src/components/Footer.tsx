@@ -2,9 +2,16 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, Phone, Mail, MapPin, Clock, Facebook, Instagram } from "lucide-react";
+import { Heart, Phone, Mail, MapPin, Clock, Facebook, Instagram, Send } from "lucide-react";
+import FloatingWhatsApp from './FloatingWhatsApp';
+import { createWhatsAppHandler, WHATSAPP_NUMBERS, WHATSAPP_MESSAGES } from '@/utils/whatsapp';
 
 export default function Footer() {
+  const handleWhatsAppClick = createWhatsAppHandler({
+    phoneNumber: WHATSAPP_NUMBERS.MAIN,
+    message: WHATSAPP_MESSAGES.GENERAL
+  });
+
   return (
     <footer className="bg-black text-white">
       {/* Sección principal */}
@@ -14,19 +21,19 @@ export default function Footer() {
           <div className="lg:col-span-1">
             <div className="flex items-center gap-3 mb-4">
               <Image
-                src="/img/logo-jazmin.png"
-                alt="Flores D' Jazmin"
+                src="/img/logofooter2.webp"
+                alt="Flores y Detalles Lima"
                 width={100}
                 height={70}
                 className="object-contain"
               />
             </div>
             <p className="text-gray-300 mb-4">
-              Tu florería de confianza en Lima. En Flores D&apos; Jazmin creamos momentos especiales con los arreglos florales más frescos y hermosos, diseñados con amor para cada ocasión especial.
+              Tu florería de confianza en Lima. En Flores y Detalles Lima creamos momentos especiales con los arreglos florales más frescos y hermosos, diseñados con amor para cada ocasión especial.
             </p>
             <div className="flex gap-3">
               <a 
-                href="#" 
+                href="https://www.facebook.com/floresydetalleslima/?locale=es_LA" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-800 hover:bg-blue-600 p-2 rounded-full transition-colors"
@@ -38,13 +45,13 @@ export default function Footer() {
                 href="#" 
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-gray-800 hover:bg-pink-600 p-2 rounded-full transition-colors"
+                className="bg-gray-800 hover:bg-pink-bright p-2 rounded-full transition-colors"
                 title="Síguenos en Instagram"
               >
                 <Instagram className="w-5 h-5" />
               </a>
               <a 
-                href="#" 
+                href="https://www.tiktok.com/@floresydetalleslima" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-800 hover:bg-black p-2 rounded-full transition-colors"
@@ -55,9 +62,8 @@ export default function Footer() {
                 </svg>
               </a>
               <a 
-                href="https://wa.me/51919642610"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="#"
+                onClick={handleWhatsAppClick}
                 className="bg-gray-800 hover:bg-green-500 p-2 rounded-full transition-colors"
                 title="Contáctanos por WhatsApp"
               >
@@ -70,25 +76,30 @@ export default function Footer() {
 
           {/* Enlaces rápidos */}
           <div>
-            <h3 className="font-bold text-lg mb-4 text-pink-600">Enlaces Rápidos</h3>
+            <h3 className="font-bold text-lg mb-4 text-pink-bright">Enlaces Rápidos</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/flores" className="text-gray-300 hover:text-pink-600 transition-colors">
+                <Link href="/tienda-fisica" className="text-gray-300 hover:text-pink-bright transition-colors">
+                  Tienda Física
+                </Link>
+              </li>
+              <li>
+                <Link href="/ofertas" className="text-gray-300 hover:text-pink-light transition-colors">
+                  Ofertas Especiales
+                </Link>
+              </li>
+              <li>
+                <Link href="/flores" className="text-gray-300 hover:text-pink-light transition-colors">
                   Catálogo de Flores
                 </Link>
               </li>
               <li>
-                <Link href="/ocasiones" className="text-gray-300 hover:text-pink-600 transition-colors">
-                  Ocasiones Especiales
+                <Link href="/personalizar-ramo" className="text-gray-300 hover:text-pink-light transition-colors">
+                  Personalizar Ramo
                 </Link>
               </li>
               <li>
-                <Link href="/contacto" className="text-gray-300 hover:text-pink-600 transition-colors">
-                  Contáctanos
-                </Link>
-              </li>
-              <li>
-                <Link href="/nosotros" className="text-gray-300 hover:text-pink-600 transition-colors">
+                <Link href="/nosotros" className="text-gray-300 hover:text-pink-light transition-colors">
                   Nosotros
                 </Link>
               </li>
@@ -97,26 +108,31 @@ export default function Footer() {
 
           {/* Servicios */}
           <div>
-            <h3 className="font-bold text-lg mb-4 text-pink-600">Nuestros Servicios</h3>
+            <h3 className="font-bold text-lg mb-4 text-pink-light">Nuestros Servicios</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="#" className="text-gray-300 hover:text-pink-600 transition-colors">
-                  Delivery en Lima
+                <Link href="/servicios#areas-cobertura" className="text-gray-300 hover:text-pink-light transition-colors">
+                  Delivery gratuito en Canto Rey - Ver áreas de cobertura
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-300 hover:text-pink-600 transition-colors">
+                <Link href="#" className="text-gray-300 hover:text-pink-light transition-colors">
                   Ramos personalizados
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-300 hover:text-pink-600 transition-colors">
+                <Link href="#" className="text-gray-300 hover:text-pink-light transition-colors">
                   Arreglos para eventos
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-gray-300 hover:text-pink-600 transition-colors">
+                <Link href="#" className="text-gray-300 hover:text-pink-light transition-colors">
                   Flores para bodas
+                </Link>
+              </li>
+              <li>
+                <Link href="#" className="text-gray-300 hover:text-pink-light transition-colors">
+                  Consultoría Floral Lima
                 </Link>
               </li>
             </ul>
@@ -124,24 +140,53 @@ export default function Footer() {
 
           {/* Contacto */}
           <div>
-            <h3 className="font-bold text-lg mb-4 text-pink-600">Contáctanos</h3>
+            <h3 className="font-bold text-lg mb-4 text-pink-light">Contáctanos</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-pink-600 flex-shrink-0" />
+                <Phone className="w-5 h-5 text-pink-bright" />
                 <span className="text-gray-300">+51 919 642 610</span>
               </div>
               <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-pink-600 flex-shrink-0" />
-                <span className="text-gray-300 text-sm">info@floresdjazmin.com</span>
-              </div>
-              <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-pink-600 flex-shrink-0 mt-1" />
-                <span className="text-gray-300 text-sm">Lima, Perú</span>
+                <Mail className="w-5 h-5 text-pink-bright" />
+                <span className="text-gray-300">floresydetalleslima1@gmail.com</span>
               </div>
               <div className="flex items-center gap-3">
-                <Clock className="w-5 h-5 text-pink-600 flex-shrink-0" />
-                <span className="text-gray-300">Lun - Dom: 9:00 AM - 8:00 PM</span>
+                <MapPin className="w-5 h-5 text-pink-bright" />
+                <span className="text-gray-300">Av. Próceres de la Independencia N°3301, Mercado Progreso Los Pinos, 2do. Piso - Tienda 12, SJL</span>
               </div>
+              <div className="flex items-center gap-3">
+                <Clock className="w-5 h-5 text-pink-bright" />
+                <span className="text-gray-300">Lun - Dom: 8:00 AM - 10:00 PM</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Newsletter */}
+      <div className="border-t border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <div className="bg-gradient-to-r from-pink-bright to-purple-500 p-3 rounded-full">
+                <Send className="w-6 h-6 text-white" />
+              </div>
+              <h3 className="font-bold text-2xl text-pink-light">
+                ¡Únete a la familia Flores y Detalles Lima!
+              </h3>
+            </div>
+            <p className="text-gray-300 mb-6 text-lg">
+              Suscríbete y recibe ofertas exclusivas, tips de cuidado floral y novedades
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+              <input
+                type="email"
+                placeholder="Tu correo electrónico"
+                className="flex-1 px-4 py-3 rounded-full bg-gray-800 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:border-pink-bright"
+              />
+              <button className="bg-pink-bright hover:bg-pink-light text-white font-semibold px-6 py-3 rounded-full transition-colors">
+                Suscribirse
+              </button>
             </div>
           </div>
         </div>
@@ -152,22 +197,28 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <Heart className="w-4 h-4 text-pink-600 animate-pulse" />
+              <Heart className="w-4 h-4 text-pink-bright animate-heart-beat" />
               <span className="text-gray-400 text-sm">
-                © 2025 Flores D&apos; Jazmin. Hecho con amor en Lima, Perú.
+                © 2024 Flores y Detalles Lima. Hecho con amor en Lima, Perú.
               </span>
             </div>
             <div className="flex gap-6 text-sm">
-              <Link href="/terminos" className="text-gray-400 hover:text-pink-600 transition-colors">
+              <Link href="/terminos" className="text-gray-400 hover:text-pink-light transition-colors">
                 Términos y Condiciones
               </Link>
-              <Link href="/privacidad" className="text-gray-400 hover:text-pink-600 transition-colors">
+              <Link href="#" className="text-gray-400 hover:text-pink-light transition-colors">
                 Política de Privacidad
+              </Link>
+              <Link href="#" className="text-gray-400 hover:text-pink-light transition-colors">
+                Política de Devoluciones
               </Link>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Componente flotante de WhatsApp mejorado */}
+      <FloatingWhatsApp />
     </footer>
   );
 }

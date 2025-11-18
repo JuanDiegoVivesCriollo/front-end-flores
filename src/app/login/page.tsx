@@ -1,19 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, Heart, Star, Fingerprint } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import PhoneInput from '@/components/PhoneInput';
-
-// Tipos para la autenticación con huella dactilar
-interface BiometricCredential {
-  id: string;
-  email: string;
-  timestamp: number;
-}
+import BiometricSetup from '@/components/BiometricSetup';
 
 export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,14 +15,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isPhoneValid, setIsPhoneValid] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  
-  // Estados para autenticación biométrica
-  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
-  const [isBiometricRegistered, setIsBiometricRegistered] = useState(false);
-  const [biometricEmail, setBiometricEmail] = useState('');
-  const [showBiometricModal, setShowBiometricModal] = useState(false);
-  const [biometricStatus, setBiometricStatus] = useState<'idle' | 'requesting' | 'success' | 'error'>('idle');
-  
+  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [isBiometricLoading, setIsBiometricLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -46,234 +35,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const redirectTo = searchParams.get('redirect');
-  const { login, register } = useAuth();
-
-  // Verificar si la autenticación biométrica está disponible
-  useEffect(() => {
-    checkBiometricAvailability();
-    checkBiometricRegistration();
-  }, []);
-
-  const checkBiometricAvailability = async () => {
-    // Verificar si el navegador soporta WebAuthn (Web Authentication API)
-    if (window.PublicKeyCredential && 
-        PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
-      try {
-        const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-        setIsBiometricAvailable(available);
-      } catch (error) {
-        console.error('Error checking biometric availability:', error);
-        setIsBiometricAvailable(false);
-      }
-    } else {
-      setIsBiometricAvailable(false);
-    }
-  };
-
-  const checkBiometricRegistration = () => {
-    // Verificar si hay credenciales biométricas guardadas
-    const storedCredential = localStorage.getItem('biometric_credential');
-    if (storedCredential) {
-      try {
-        const credential: BiometricCredential = JSON.parse(storedCredential);
-        setIsBiometricRegistered(true);
-        setBiometricEmail(credential.email);
-      } catch (error) {
-        console.error('Error parsing biometric credential:', error);
-      }
-    }
-  };
-
-  const handleBiometricLogin = async () => {
-    setIsLoading(true);
-    setMessage('');
-    setShowBiometricModal(true);
-    setBiometricStatus('requesting');
-
-    try {
-      // Obtener las credenciales guardadas
-      const storedCredential = localStorage.getItem('biometric_credential');
-      if (!storedCredential) {
-        setBiometricStatus('error');
-        setMessage('No hay credenciales biométricas registradas');
-        setTimeout(() => setShowBiometricModal(false), 2000);
-        setIsLoading(false);
-        return;
-      }
-
-      const credential: BiometricCredential = JSON.parse(storedCredential);
-
-      // Simular verificación biométrica con WebAuthn
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      try {
-        const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
-          challenge: challenge,
-          rpId: window.location.hostname,
-          timeout: 60000,
-          userVerification: 'required',
-          allowCredentials: [{
-            id: new TextEncoder().encode(credential.id),
-            type: 'public-key',
-            transports: ['internal']
-          }]
-        };
-
-        const assertion = await navigator.credentials.get({
-          publicKey: publicKeyCredentialRequestOptions
-        }) as PublicKeyCredential;
-
-        if (assertion) {
-          setBiometricStatus('success');
-          
-          // Obtener la contraseña guardada de forma segura (en producción usar el backend)
-          const savedPassword = localStorage.getItem(`pwd_${credential.email}`);
-          
-          if (savedPassword) {
-            const result = await login(credential.email, savedPassword);
-            if (result.success) {
-              setMessage('¡Autenticación biométrica exitosa!');
-              setTimeout(() => {
-                setShowBiometricModal(false);
-                if (redirectTo === 'checkout') {
-                  router.push('/checkout');
-                } else if (redirectTo) {
-                  router.push(redirectTo);
-                } else {
-                  router.push('/');
-                }
-              }, 1500);
-            } else {
-              setBiometricStatus('error');
-              setMessage('Error al iniciar sesión. Por favor, usa el método tradicional.');
-              setTimeout(() => setShowBiometricModal(false), 2000);
-            }
-          } else {
-            setBiometricStatus('error');
-            setMessage('Credenciales no encontradas. Por favor, configura de nuevo.');
-            setTimeout(() => setShowBiometricModal(false), 2000);
-          }
-        }
-      } catch (error) {
-        const err = error as Error & { name?: string };
-        setBiometricStatus('error');
-        if (err.name === 'NotAllowedError') {
-          setMessage('Autenticación biométrica cancelada');
-        } else {
-          setMessage('Error en la autenticación biométrica. Intenta con el método tradicional.');
-        }
-        console.error('Biometric authentication error:', error);
-        setTimeout(() => setShowBiometricModal(false), 2000);
-      }
-    } catch (error) {
-      setBiometricStatus('error');
-      setMessage('Error al procesar la autenticación biométrica');
-      console.error('Error:', error);
-      setTimeout(() => setShowBiometricModal(false), 2000);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const setupBiometricAuth = async () => {
-    if (!formData.email || !formData.password) {
-      setMessage('Por favor, ingresa tu email y contraseña primero');
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage('');
-    setShowBiometricModal(true);
-    setBiometricStatus('requesting');
-
-    try {
-      // Generar un ID único para esta credencial
-      const credentialId = `cred_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Crear desafío para WebAuthn
-      const challenge = new Uint8Array(32);
-      window.crypto.getRandomValues(challenge);
-
-      const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
-        challenge: challenge,
-        rp: {
-          name: "Flores y Detalles",
-          id: window.location.hostname
-        },
-        user: {
-          id: new TextEncoder().encode(formData.email),
-          name: formData.email,
-          displayName: formData.name || formData.email
-        },
-        pubKeyCredParams: [
-          { alg: -7, type: "public-key" },
-          { alg: -257, type: "public-key" }
-        ],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "required"
-        },
-        timeout: 60000,
-        attestation: "none"
-      };
-
-      try {
-        const credential = await navigator.credentials.create({
-          publicKey: publicKeyCredentialCreationOptions
-        }) as PublicKeyCredential;
-
-        if (credential) {
-          setBiometricStatus('success');
-          
-          // Guardar la credencial biométrica
-          const biometricCred: BiometricCredential = {
-            id: credentialId,
-            email: formData.email,
-            timestamp: Date.now()
-          };
-
-          localStorage.setItem('biometric_credential', JSON.stringify(biometricCred));
-          // IMPORTANTE: En producción, NUNCA guardes contraseñas en localStorage
-          // Esto es solo para demostración del frontend
-          localStorage.setItem(`pwd_${formData.email}`, formData.password);
-
-          setIsBiometricRegistered(true);
-          setBiometricEmail(formData.email);
-          setMessage('¡Huella dactilar configurada exitosamente!');
-          setTimeout(() => setShowBiometricModal(false), 2000);
-        }
-      } catch (error) {
-        const err = error as Error & { name?: string };
-        setBiometricStatus('error');
-        if (err.name === 'NotAllowedError') {
-          setMessage('Configuración de huella dactilar cancelada');
-        } else {
-          setMessage('Error al configurar la huella dactilar. Verifica que tu dispositivo lo soporte.');
-        }
-        console.error('WebAuthn error:', error);
-        setTimeout(() => setShowBiometricModal(false), 2000);
-      }
-    } catch (error) {
-      setBiometricStatus('error');
-      setMessage('Error al configurar la autenticación biométrica');
-      console.error('Error:', error);
-      setTimeout(() => setShowBiometricModal(false), 2000);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const removeBiometricAuth = () => {
-    const confirmed = window.confirm('¿Estás seguro de que quieres eliminar la autenticación con huella dactilar?');
-    if (confirmed) {
-      localStorage.removeItem('biometric_credential');
-      localStorage.removeItem(`pwd_${biometricEmail}`);
-      setIsBiometricRegistered(false);
-      setBiometricEmail('');
-      setMessage('Autenticación biométrica eliminada');
-    }
-  };
+  const { login, register, loginWithBiometric, checkBiometricAvailability, isBiometricSupported } = useAuth();
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -286,7 +48,7 @@ export default function LoginPage() {
 
     if (!formData.password) {
       newErrors.password = 'La contraseña es requerida';
-    } else if (!isLogin && formData.password.length < 8) {
+    } else if (formData.password.length < 8) {
       newErrors.password = 'La contraseña debe tener al menos 8 caracteres';
     }
 
@@ -334,7 +96,69 @@ export default function LoginPage() {
     await performAuth();
   };
 
+  // Login directo con biometría (sin email)
+  const handleDirectBiometricLogin = async () => {
+    if (!isBiometricSupported) {
+      setMessage('Tu dispositivo no soporta autenticación biométrica');
+      return;
+    }
+
+    setIsBiometricLoading(true);
+    setMessage('');
+
+    try {
+      const result = await loginWithBiometric('');
+      
+      if (result.success) {
+        setMessage('¡Bienvenido! Iniciando sesión...');
+        handleRedirect();
+      } else {
+        setMessage(result.message || 'Error al iniciar sesión con huella');
+      }
+    } catch (error) {
+      console.error('Biometric login error:', error);
+      setMessage('Error al iniciar sesión con huella dactilar');
+    } finally {
+      setIsBiometricLoading(false);
+    }
+  };
+
   const performAuth = async () => {
+    await performAuthWithBiometricPrompt();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  // Verificar disponibilidad biométrica cuando cambia el email
+  useEffect(() => {
+    const checkBiometric = async () => {
+      // Primero verificar si el dispositivo tiene hardware biométrico
+      if (!isBiometricSupported) {
+        setBiometricAvailable(false);
+        return;
+      }
+
+      if (isLogin && formData.email && /\S+@\S+\.\S+/.test(formData.email)) {
+        const result = await checkBiometricAvailability(formData.email);
+        // Solo mostrar si el usuario tiene credenciales Y el hardware está disponible
+        setBiometricAvailable(result.available && result.count > 0);
+      } else {
+        setBiometricAvailable(false);
+      }
+    };
+
+    const timeoutId = setTimeout(checkBiometric, 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.email, isLogin, checkBiometricAvailability, isBiometricSupported]);
+
+  // Mostrar setup biométrico después de login exitoso tradicional
+  const performAuthWithBiometricPrompt = async () => {
     setIsLoading(true);
     
     try {
@@ -359,16 +183,13 @@ export default function LoginPage() {
         setMessage(result.message);
         setShowConfirmationModal(false);
         
-        // Redirigir según corresponda
-        setTimeout(() => {
-          if (redirectTo === 'checkout') {
-            router.push('/checkout');
-          } else if (redirectTo) {
-            router.push(redirectTo);
-          } else {
-            router.push('/');
-          }
-        }, 1500);
+        // Mostrar setup biométrico si es login exitoso y el navegador lo soporta
+        if (isLogin && isBiometricSupported) {
+          setShowBiometricSetup(true);
+        } else {
+          // Redirigir directamente si no hay soporte biométrico
+          handleRedirect();
+        }
       } else {
         setMessage(result.message);
         setShowConfirmationModal(false);
@@ -382,12 +203,35 @@ export default function LoginPage() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+  const handleRedirect = () => {
+    if (redirectTo === 'checkout') {
+      router.push('/checkout');
+    } else if (redirectTo) {
+      router.push(redirectTo);
+    } else {
+      router.push('/');
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    setIsBiometricLoading(true);
+    setMessage('');
+    
+    try {
+      const result = await loginWithBiometric(formData.email);
+      
+      if (result.success) {
+        setMessage('¡Autenticación biométrica exitosa!');
+        setTimeout(handleRedirect, 1000);
+      } else {
+        setMessage(result.message || 'Error en la autenticación biométrica');
+      }
+    } catch (error) {
+      setMessage('Error al autenticar con huella dactilar');
+      console.error('Biometric login error:', error);
+    } finally {
+      setIsBiometricLoading(false);
+    }
   };
 
   return (
@@ -453,66 +297,6 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* Biometric Login Button (Solo si está disponible y registrado) */}
-        <AnimatePresence>
-          {isLogin && isBiometricAvailable && isBiometricRegistered && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="bg-white/80 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-white/50"
-            >
-              <div className="text-center space-y-4">
-                <div className="flex items-center justify-center">
-                  <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-3 rounded-full">
-                    <Fingerprint className="h-8 w-8 text-white" />
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Acceso rápido con huella
-                  </h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Configurado para: <span className="font-medium">{biometricEmail}</span>
-                  </p>
-                </div>
-
-                <motion.button
-                  type="button"
-                  onClick={handleBiometricLogin}
-                  disabled={isLoading}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full flex items-center justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-xl text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <Fingerprint className="h-5 w-5 mr-2" />
-                  Iniciar con huella dactilar
-                </motion.button>
-
-                <button
-                  type="button"
-                  onClick={removeBiometricAuth}
-                  className="text-xs text-gray-500 hover:text-gray-700 underline"
-                >
-                  Eliminar autenticación biométrica
-                </button>
-              </div>
-
-              <div className="mt-4 relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300" />
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white/80 text-gray-500">
-                    O usa tu contraseña
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -565,8 +349,44 @@ export default function LoginPage() {
                   className="appearance-none rounded-xl relative block w-full px-3 py-3 pl-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 focus:z-10 sm:text-sm transition-all duration-200"
                   placeholder="Correo electrónico"
                 />
+                {isLogin && biometricAvailable && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  >
+                    <button
+                      type="button"
+                      onClick={handleBiometricLogin}
+                      disabled={isBiometricLoading}
+                      className="text-pink-600 hover:text-pink-700 focus:outline-none transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Iniciar sesión con huella dactilar"
+                    >
+                      {isBiometricLoading ? (
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        >
+                          <Fingerprint className="h-6 w-6" />
+                        </motion.div>
+                      ) : (
+                        <Fingerprint className="h-6 w-6" />
+                      )}
+                    </button>
+                  </motion.div>
+                )}
               </div>
               {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email}</p>}
+              {isLogin && biometricAvailable && (
+                <motion.p 
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-1 text-xs text-green-600 flex items-center gap-1"
+                >
+                  <Fingerprint className="h-3 w-3" />
+                  Autenticación biométrica disponible
+                </motion.p>
+              )}
             </div>
 
             <div>
@@ -704,7 +524,7 @@ export default function LoginPage() {
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.3 }}
-                className="bg-blue-50 border border-blue-200 rounded-xl p-4"
+                className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4"
               >
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
@@ -718,7 +538,15 @@ export default function LoginPage() {
                     </h3>
                     <div className="mt-2 text-sm text-blue-700">
                       <p>
-                        Por favor, asegúrate de que todos los datos ingresados sean correctos y verídicos.
+                        Por favor, asegúrate de que todos los datos ingresados sean correctos y verídicos. Esta información será utilizada para:
+                      </p>
+                      <ul className="list-disc list-inside mt-2 space-y-1">
+                        <li>Procesamiento de pedidos y envíos</li>
+                        <li>Comunicación sobre el estado de tus compras</li>
+                        <li>Contacto en caso de consultas o problemas</li>
+                      </ul>
+                      <p className="mt-2">
+                        <strong>Tu email y teléfono deben ser válidos y activos.</strong>
                       </p>
                     </div>
                   </div>
@@ -751,39 +579,6 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            {/* Opción de configurar biométrico después del login */}
-            {isLogin && isBiometricAvailable && !isBiometricRegistered && formData.email && formData.password && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200 p-4 rounded-xl"
-              >
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0 bg-purple-100 p-2 rounded-full">
-                    <Fingerprint className="h-5 w-5 text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">
-                      Configura tu huella dactilar
-                    </h4>
-                    <p className="text-xs text-gray-600 mb-3">
-                      Accede más rápido la próxima vez con tu huella
-                    </p>
-                    <button
-                      type="button"
-                      onClick={setupBiometricAuth}
-                      disabled={isLoading}
-                      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
-                    >
-                      <Fingerprint className="h-4 w-4 mr-2" />
-                      Configurar ahora
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
             {isLogin && (
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -812,7 +607,7 @@ export default function LoginPage() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`p-3 rounded-lg text-sm text-center ${
-                  message.includes('exitoso') || message.includes('Registro exitoso') || message.includes('configurada')
+                  message.includes('exitoso') || message.includes('Registro exitoso')
                     ? 'bg-green-100 text-green-700'
                     : 'bg-red-100 text-red-700'
                 }`}
@@ -853,6 +648,47 @@ export default function LoginPage() {
                 }
               </motion.button>
             </div>
+
+            {/* Botón de inicio de sesión con huella (solo en login) */}
+            {isLogin && isBiometricSupported && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-white text-gray-500">o</span>
+                </div>
+              </div>
+            )}
+
+            {isLogin && isBiometricSupported && (
+              <motion.button
+                type="button"
+                onClick={handleDirectBiometricLogin}
+                disabled={isBiometricLoading}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="group relative w-full flex justify-center items-center gap-3 py-3 px-4 border-2 border-pink-300 text-sm font-medium rounded-xl text-pink-700 bg-white hover:bg-pink-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                {isBiometricLoading ? (
+                  <>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="h-5 w-5 text-pink-600"
+                    >
+                      <Star className="h-5 w-5" />
+                    </motion.div>
+                    <span>Verificando huella...</span>
+                  </>
+                ) : (
+                  <>
+                    <Fingerprint className="h-6 w-6 text-pink-600" />
+                    <span>Iniciar sesión con huella</span>
+                  </>
+                )}
+              </motion.button>
+            )}
           </form>
 
           <div className="mt-6">
@@ -870,11 +706,7 @@ export default function LoginPage() {
             <div className="mt-6 text-center">
               <button
                 type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setMessage('');
-                  setErrors({});
-                }}
+                onClick={() => setIsLogin(!isLogin)}
                 className="font-medium text-pink-600 hover:text-pink-500 transition-colors duration-150"
               >
                 {isLogin ? 'Crear cuenta nueva' : 'Iniciar sesión'}
@@ -944,8 +776,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirmationModal(false)}
-                  disabled={isLoading}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors duration-200 disabled:opacity-50"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-xl font-medium transition-colors duration-200"
                 >
                   Verificar datos
                 </button>
@@ -976,188 +807,18 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* Modal de Autenticación Biométrica */}
-      <AnimatePresence>
-        {showBiometricModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl"
-            >
-              <div className="text-center">
-                {/* Animación de huella dactilar */}
-                <div className="relative mx-auto w-32 h-32 mb-6">
-                  {biometricStatus === 'requesting' && (
-                    <>
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-purple-400 to-indigo-400 rounded-full"
-                        animate={{
-                          scale: [1, 1.2, 1],
-                          opacity: [0.5, 0.2, 0.5],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                      />
-                      <motion.div
-                        className="absolute inset-4 bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full"
-                        animate={{
-                          scale: [1, 1.15, 1],
-                          opacity: [0.6, 0.3, 0.6],
-                        }}
-                        transition={{
-                          duration: 2,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                          delay: 0.3
-                        }}
-                      />
-                    </>
-                  )}
-                  
-                  {biometricStatus === 'success' && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full flex items-center justify-center"
-                    >
-                      <motion.svg
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 0.5 }}
-                        className="w-16 h-16 text-white"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                      >
-                        <motion.path
-                          d="M5 13l4 4L19 7"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </motion.svg>
-                    </motion.div>
-                  )}
-                  
-                  {biometricStatus === 'error' && (
-                    <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="absolute inset-0 bg-gradient-to-r from-red-400 to-rose-400 rounded-full flex items-center justify-center"
-                    >
-                      <svg className="w-16 h-16 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                        <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </motion.div>
-                  )}
-                  
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <motion.div
-                      animate={biometricStatus === 'requesting' ? {
-                        rotate: 360,
-                        scale: [1, 1.1, 1]
-                      } : {}}
-                      transition={biometricStatus === 'requesting' ? {
-                        rotate: { duration: 3, repeat: Infinity, ease: "linear" },
-                        scale: { duration: 1.5, repeat: Infinity, ease: "easeInOut" }
-                      } : {}}
-                    >
-                      <Fingerprint 
-                        className={`w-16 h-16 ${
-                          biometricStatus === 'requesting' ? 'text-purple-600' :
-                          biometricStatus === 'success' ? 'text-white' :
-                          biometricStatus === 'error' ? 'text-white' :
-                          'text-purple-600'
-                        }`}
-                      />
-                    </motion.div>
-                  </div>
-                </div>
-
-                {/* Mensajes según estado */}
-                <motion.div
-                  key={biometricStatus}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  {biometricStatus === 'requesting' && (
-                    <>
-                      <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                        Coloca tu dedo
-                      </h3>
-                      <p className="text-gray-600 mb-4">
-                        En el sensor de huella dactilar
-                      </p>
-                      <div className="flex items-center justify-center space-x-1">
-                        <motion.div
-                          className="w-2 h-2 bg-purple-600 rounded-full"
-                          animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                          transition={{ duration: 1, repeat: Infinity, delay: 0 }}
-                        />
-                        <motion.div
-                          className="w-2 h-2 bg-purple-600 rounded-full"
-                          animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                          transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                        />
-                        <motion.div
-                          className="w-2 h-2 bg-purple-600 rounded-full"
-                          animate={{ scale: [1, 1.5, 1], opacity: [1, 0.5, 1] }}
-                          transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {biometricStatus === 'success' && (
-                    <>
-                      <h3 className="text-2xl font-bold text-green-600 mb-2">
-                        ¡Autenticado!
-                      </h3>
-                      <p className="text-gray-600">
-                        Verificación exitosa
-                      </p>
-                    </>
-                  )}
-
-                  {biometricStatus === 'error' && (
-                    <>
-                      <h3 className="text-2xl font-bold text-red-600 mb-2">
-                        Error
-                      </h3>
-                      <p className="text-gray-600">
-                        {message || 'No se pudo verificar la huella'}
-                      </p>
-                    </>
-                  )}
-                </motion.div>
-
-                {/* Botón de cancelar solo cuando está solicitando */}
-                {biometricStatus === 'requesting' && (
-                  <motion.button
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1 }}
-                    onClick={() => {
-                      setShowBiometricModal(false);
-                      setBiometricStatus('idle');
-                      setIsLoading(false);
-                    }}
-                    className="mt-6 text-sm text-gray-500 hover:text-gray-700 underline"
-                  >
-                    Cancelar
-                  </motion.button>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* Modal de Configuración Biométrica */}
+      <BiometricSetup
+        isOpen={showBiometricSetup}
+        onClose={() => {
+          setShowBiometricSetup(false);
+          handleRedirect();
+        }}
+        onSuccess={() => {
+          setShowBiometricSetup(false);
+          handleRedirect();
+        }}
+      />
     </div>
   );
 }

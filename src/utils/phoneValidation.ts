@@ -76,3 +76,44 @@ export function formatPeruvianPhone(phone: string): string {
 export function cleanPhoneForApi(phone: string): string {
   return phone.replace(/\D/g, '');
 }
+
+/**
+ * Hook personalizado para manejar validación de teléfono en tiempo real
+ */
+export function usePhoneValidation(initialValue: string = '') {
+  const [phone, setPhone] = useState(initialValue);
+  const [error, setError] = useState('');
+  const [isValid, setIsValid] = useState(false);
+  
+  const validatePhone = (value: string) => {
+    const result = validatePeruvianPhone(value);
+    setError(result.isValid ? '' : result.message);
+    setIsValid(result.isValid);
+    return result;
+  };
+  
+  const handlePhoneChange = (value: string) => {
+    // Permitir solo números y espacios mientras escribe
+    const filteredValue = value.replace(/[^\d\s]/g, '');
+    
+    // Limitar a 11 caracteres (9 dígitos + 2 espacios)
+    if (filteredValue.length <= 11) {
+      setPhone(filteredValue);
+      validatePhone(filteredValue);
+    }
+  };
+  
+  return {
+    phone,
+    error,
+    isValid,
+    setPhone,
+    handlePhoneChange,
+    validatePhone,
+    cleanPhone: cleanPhoneForApi(phone),
+    formattedPhone: formatPeruvianPhone(phone)
+  };
+}
+
+// Re-exportar useState para el hook
+import { useState } from 'react';

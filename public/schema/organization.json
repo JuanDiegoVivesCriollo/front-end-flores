@@ -1,0 +1,219 @@
+{
+  "@context": "https://schema.org",
+  "@type": ["Organization", "LocalBusiness", "Florist"],
+  "@id": "https://floresydetalleslima.com/#organization",
+  "name": "Flores y Detalles Lima",
+  "alternateName": [
+    "Florería Lima", 
+    "Flores Lima",
+    "Floristería Lima",
+    "Flores y Detalles"
+  ],
+  "description": "Florería premium en Lima especializada en flores frescas, rosas rojas, tulipanes, girasoles, orquídeas y arreglos florales profesionales para bodas, cumpleaños y eventos especiales. Delivery gratuito en San Juan de Lurigancho.",
+  "url": "https://floresydetalleslima.com",
+  "logo": {
+    "@type": "ImageObject",
+    "url": "https://floresydetalleslima.com/img/logo.png",
+    "width": 200,
+    "height": 200
+  },
+  "image": [
+    "https://floresydetalleslima.com/img/og-image.jpg",
+    "https://floresydetalleslima.com/img/floreria-lima.jpg",
+    "https://floresydetalleslima.com/img/rosas-premium.jpg"
+  ],
+  "telephone": "+51919642610",
+  "email": "info@floresydetalleslima.com",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "Mercado Progreso Los Pinos",
+    "addressLocality": "San Juan de Lurigancho",
+    "addressRegion": "Lima",
+    "postalCode": "15434",
+    "addressCountry": "PE"
+  },
+  "geo": {
+    "@type": "GeoCoordinates", 
+    "latitude": -11.975443,
+    "longitude": -77.001510
+  },
+  "openingHours": "Mo-Su 09:00-20:00",
+  "priceRange": "$$",
+  "currenciesAccepted": "PEN",
+  "paymentAccepted": ["Cash", "Credit Card", "Debit Card", "Bank Transfer"],
+  "areaServed": [
+    {
+      "@type": "City",
+      "name": "Lima",
+      "addressCountry": "PE"
+    },
+    {
+      "@type": "AdministrativeArea",
+      "name": "San Juan de Lurigancho",
+      "addressCountry": "PE"
+    }
+  ],
+  "serviceType": "Florería y Arreglos Florales",
+  "knowsAbout": [
+    "Flores frescas",
+    "Rosas rojas", 
+    "Tulipanes",
+    "Girasoles",
+    "Orquídeas",
+    "Liliums",
+    "Arreglos florales",
+    "Decoración floral",
+    "Bodas",
+    "Cumpleaños",
+    "San Valentín",
+    "Día de la Madre",
+    "Delivery Lima"
+  ],
+  "hasOfferCatalog": {
+    "@type": "OfferCatalog",
+    "name": "Catálogo de Flores y Arreglos",
+    "itemListElement": [
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Product",
+          "name": "Rosas Rojas Premium",
+          "category": "Flores",
+          "brand": "Flores y Detalles Lima",
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "PEN",
+            "price": "45.00",
+            "priceValidUntil": "2025-12-31",
+            "availability": "https://schema.org/InStock",
+            "seller": {
+              "@type": "Organization",
+              "name": "Flores y Detalles Lima"
+            }
+          },
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "reviewCount": "25",
+            "bestRating": "5",
+            "worstRating": "1"
+          }
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Product", 
+          "name": "Tulipanes Frescos",
+          "category": "Flores",
+          "brand": "Flores y Detalles Lima",
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "PEN",
+            "price": "35.00",
+            "priceValidUntil": "2025-12-31",
+            "availability": "https://schema.org/InStock",
+            "seller": {
+              "@type": "Organization",
+              "name": "Flores y Detalles Lima"
+            }
+          },
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.7",
+            "reviewCount": "18",
+            "bestRating": "5",
+            "worstRating": "1"
+          }
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Product",
+          "name": "Arreglos Florales para Bodas",
+          "category": "Servicios Florales",
+          "brand": "Flores y Detalles Lima",
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "PEN",
+            "price": "150.00",
+            "priceValidUntil": "2025-12-31",
+            "availability": "https://schema.org/InStock",
+            "seller": {
+              "@type": "Organization",
+              "name": "Flores y Detalles Lima"
+            }
+          },
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.9",
+            "reviewCount": "32",
+            "bestRating": "5",
+            "worstRating": "1"
+          }
+        }
+      },
+      {
+        "@type": "Offer",
+        "itemOffered": {
+          "@type": "Service", 
+          "name": "Delivery Gratuito Lima",
+          "category": "Entrega",
+          "provider": "Flores y Detalles Lima",
+          "offers": {
+            "@type": "Offer",
+            "priceCurrency": "PEN",
+            "price": "0.00",
+            "priceValidUntil": "2025-12-31",
+            "availability": "https://schema.org/InStock"
+          }
+        }
+      }
+    ]
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.8",
+    "reviewCount": "150",
+    "bestRating": "5",
+    "worstRating": "1"
+  },
+  "review": [
+    {
+      "@type": "Review",
+      "reviewRating": {
+        "@type": "Rating", 
+        "ratingValue": "5",
+        "bestRating": "5"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "María González"
+      },
+      "reviewBody": "Excelente servicio, las flores llegaron frescas y hermosas. El arreglo para mi boda fue perfecto.",
+      "datePublished": "2025-08-15"
+    },
+    {
+      "@type": "Review",
+      "reviewRating": {
+        "@type": "Rating",
+        "ratingValue": "5", 
+        "bestRating": "5"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Carlos Mendoza"
+      },
+      "reviewBody": "La mejor florería de Lima. Rosas de excelente calidad y delivery puntual.",
+      "datePublished": "2025-08-20"
+    }
+  ],
+  "sameAs": [
+    "https://floresydetalleslima.com"
+  ],
+  "foundingDate": "2024",
+  "numberOfEmployees": "5-10",
+  "slogan": "Tu florería de confianza en Lima",
+  "keywords": "florería lima, flores lima, rosas rojas, tulipanes, girasoles, orquídeas, arreglos florales, delivery flores, floristería san juan lurigancho"
+}

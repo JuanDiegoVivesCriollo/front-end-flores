@@ -1,0 +1,110 @@
+# robots.txt for Flores y Detalles Lima - Premium Florist in Lima, Peru
+
+User-agent: *
+Allow: /
+
+# Allow all crawlers access to CSS, JS, and images
+Allow: /css/
+Allow: /js/
+Allow: /_next/static/
+Allow: /img/
+Allow: /images/
+Allow: /icons/
+
+# Important pages for SEO
+Allow: /catalogo
+Allow: /flores
+Allow: /servicios
+Allow: /nosotros
+Allow: /contacto
+Allow: /ofertas
+Allow: /complementos
+Allow: /tienda-fisica
+
+# Disallow admin and private areas
+Disallow: /admin
+Disallow: /login
+Disallow: /checkout
+Disallow: /perfil
+Disallow: /api/
+Disallow: /payment/
+
+# Disallow test and development pages
+Disallow: /test*
+Disallow: /debug*
+Disallow: /*?debug*
+Disallow: /*?test*
+
+# Block common vulnerability scanners
+Disallow: /wp-admin/
+Disallow: /wp-content/
+Disallow: /administrator/
+Disallow: /.git/
+Disallow: /.env
+Disallow: /config/
+
+# Allow common file types and static assets
+Allow: /favicon.ico
+Allow: /sitemap.xml
+Allow: /robots.txt
+Allow: /manifest.json
+Allow: *.css
+Allow: *.js
+Allow: *.png
+Allow: *.jpg
+Allow: *.jpeg
+Allow: *.webp
+Allow: *.svg
+Allow: *.gif
+
+# Crawl-delay for different bots
+Crawl-delay: 1
+
+# Special rules for major search engines
+User-agent: Googlebot
+Crawl-delay: 0
+Allow: /
+
+User-agent: Bingbot
+Crawl-delay: 1
+Allow: /
+
+User-agent: YandexBot
+Crawl-delay: 2
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Block problematic bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: SemrushBot
+Crawl-delay: 10
+
+# Sitemap location
+Sitemap: https://floresydetalleslima.com/sitemap.xml
+
+# Additional sitemaps
+Sitemap: https://floresydetalleslima.com/sitemap-0.xml
+Sitemap: https://floresydetalleslima.com/sitemap-flores.xml
+Sitemap: https://floresydetalleslima.com/sitemap-categorias.xml
+
+# Host directive (preferred domain)
+Host: floresydetalleslima.com

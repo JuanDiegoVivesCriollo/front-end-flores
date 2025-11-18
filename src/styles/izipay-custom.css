@@ -1,0 +1,182 @@
+/* 
+ * Estilos personalizados para el formulario de pago iZiPay
+ * Basado en el ejemplo oficial de iZiPay 
+ */
+
+/* Campo wrapper */
+.kr-field-wrapper {
+    margin-top: 6px !important;
+    margin-left: 10px !important;
+}
+
+/* Contenedor principal del formulario */
+.Contains-form {
+    display: flex;
+    justify-content: center;
+    border-radius: 5px;
+    background: #ffffff;
+    background-repeat: no-repeat;
+    background-position: center top 15px;
+    background-size: 160px;
+    background-image: url("https://github.com/izipay-pe/Imagenes/blob/main/logos_izipay/logo-izipay-sinFondo-250x102.png?raw=true") !important;
+    border-radius: 6px;
+    box-shadow: 0px 10px 25px rgba(92, 99, 105, .2);
+    border: 1px solid #b3b6b5 !important;
+    margin-bottom: 25px;
+    padding: 20px !important;
+    width: 360px;
+    padding: 25px !important;
+}
+
+/* Formulario embebido principal */
+.kr-embedded {
+    background-color: #fff !important;
+    border-radius: 6px;
+    border: 1px solid #b3b6b5 !important;
+    margin-top: 58px !important;
+    box-shadow: 0px 10px 25px rgba(92, 99, 105, .2);
+    padding: 20px !important;
+    width: 100% !important;
+    max-width: 300px !important;
+}
+
+/* Contenedor de seguridad y fecha de vencimiento */
+.content-security-expiry {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-around !important;
+}
+
+/* Campo de número de tarjeta */
+.kr-pan {
+    margin-top: 14px !important;
+    height: 45px !important;
+    border-radius: 4px !important;
+}
+
+/* Campo de fecha de vencimiento */
+.kr-expiry {
+    height: 45px !important;
+    border-radius: 4px !important;
+    max-width: 49% !important;
+}
+
+/* Campo de código de seguridad */
+.kr-security-code {
+    height: 45px !important;
+    border-radius: 4px !important;
+    max-width: 49% !important;
+}
+
+/* Campo de número de cuotas */
+.kr-installment-number {
+    border-radius: 4px !important;
+    height: 45px !important;
+}
+
+/* Campo de delay primera cuota */
+.kr-first-installment-delay {
+    border-radius: 4px !important;
+    height: 45px !important;
+}
+
+/* Botón de pago principal */
+.kr-embedded .kr-payment-button {
+    color: #ffffff !important;
+    background-color: #00A09D !important;
+    border-radius: 4px !important;
+    height: 55px !important;
+    margin-bottom: 0px !important;
+    font-weight: 600 !important;
+    font-size: 16px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    transition: all 0.3s ease !important;
+}
+
+/* Efecto hover del texto del botón */
+.kr-embedded .kr-payment-button span:hover {
+    transition-duration: 0.2s;
+    font-size: large;
+    text-shadow: -0.5px -0.5px 0.5px #000, 0.5px 0.5px 0.5px #000, -0.5px 0.5px 0.5px #000, 0.5px -0.5px 0.5px #000;
+}
+
+/* Efecto hover del botón completo */
+.kr-embedded .kr-payment-button:hover {
+    background-color: #3DD2CE !important;
+    border-radius: 4px !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(0, 160, 157, 0.3) !important;
+}
+
+/* Estilo adicional para campos de entrada */
+.kr-input {
+    border: 1px solid #d1d5db !important;
+    border-radius: 4px !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    transition: border-color 0.2s ease !important;
+}
+
+.kr-input:focus {
+    border-color: #00A09D !important;
+    box-shadow: 0 0 0 3px rgba(0, 160, 157, 0.1) !important;
+    outline: none !important;
+}
+
+/* Estilos para errores */
+.kr-field-error {
+    color: #ef4444 !important;
+    font-size: 12px !important;
+    margin-top: 4px !important;
+}
+
+/* Estilos para etiquetas */
+.kr-label {
+    color: #374151 !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    margin-bottom: 6px !important;
+}
+
+/* Personalización para que se vea bien en nuestro diseño */
+#micuentawebstd_rest_wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 400px;
+    padding: 20px;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .kr-embedded {
+        max-width: 100% !important;
+        margin: 20px 0 !important;
+    }
+    
+    .Contains-form {
+        width: 100% !important;
+        max-width: 350px !important;
+    }
+}
+
+/* Animación de carga */
+.kr-form-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Estilo del logo personalizado */
+.kr-embedded::before {
+    content: '';
+    display: block;
+    width: 120px;
+    height: 40px;
+    background-image: url("https://github.com/izipay-pe/Imagenes/blob/main/logos_izipay/logo-izipay-sinFondo-250x102.png?raw=true");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    margin: 0 auto 20px auto;
+}

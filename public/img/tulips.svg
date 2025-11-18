@@ -1,0 +1,12 @@
+<!-- Placeholder SVG para tulipanes -->
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFB0B0;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFF0F0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="400" height="400" fill="url(#grad2)"/>
+  <circle cx="200" cy="200" r="80" fill="#fff" opacity="0.8"/>
+  <text x="200" y="210" font-family="Arial" font-size="40" fill="#FC879C" text-anchor="middle">🌷</text>
+</svg>

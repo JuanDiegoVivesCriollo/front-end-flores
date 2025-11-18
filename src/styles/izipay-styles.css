@@ -1,0 +1,546 @@
+/* =======================================================
+   IZIPAY PAYMENT FORM STYLES - COMPLETE ORIGINAL VERSION
+   =======================================================
+   Version: 4.0
+   Compatible with: Izipay API V4
+   Last Updated: 2024
+   ======================================================= */
+
+/* Reset and Base Styles */
+.kr-embedded * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Main Container */
+.kr-embedded {
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Header Styles */
+.kr-popin-shop-name {
+    background: #f8f9fa;
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid #e9ecef;
+    font-size: 18px;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Form Container */
+.kr-smart-form-modal-wrapper .kr-smart-form-modal .kr-smart-form-methods {
+    padding: 30px 25px;
+    background: #ffffff;
+}
+
+/* Payment Method Tabs */
+.kr-payment-method-selector {
+    display: flex;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.kr-payment-method-tab {
+    flex: 1;
+    padding: 12px 15px;
+    text-align: center;
+    border: none;
+    background: transparent;
+    color: #6c757d;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.kr-payment-method-tab:hover {
+    color: #495057;
+    background: #f8f9fa;
+}
+
+.kr-payment-method-tab.kr-active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+    background: #ffffff;
+}
+
+/* Field Container */
+.kr-field-wrapper {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+/* Input Fields */
+.kr-pan,
+.kr-expiry,
+.kr-security-code,
+.kr-card-holder-name,
+.kr-card-holder-mail,
+.kr-installment-number,
+.kr-first-installment-delay,
+.kr-identity-document-type,
+.kr-identity-document-number {
+    width: 100%;
+    height: 50px;
+    padding: 15px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 16px;
+    background: #ffffff;
+    color: #495057;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.kr-pan:focus,
+.kr-expiry:focus,
+.kr-security-code:focus,
+.kr-card-holder-name:focus,
+.kr-card-holder-mail:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Special Layout for Expiry and CVV */
+.kr-expiry-wrapper,
+.kr-security-code-wrapper {
+    display: inline-block;
+    width: 48%;
+}
+
+.kr-security-code-wrapper {
+    margin-left: 4%;
+}
+
+/* Field Labels */
+.kr-field-label {
+    display: block;
+    margin-bottom: 8px;
+    color: #495057;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+/* Placeholder Styles */
+.kr-pan::placeholder,
+.kr-expiry::placeholder,
+.kr-security-code::placeholder,
+.kr-card-holder-name::placeholder {
+    color: #6c757d;
+    opacity: 1;
+}
+
+/* Card Brand Icons */
+.kr-field-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: auto;
+}
+
+/* Payment Button */
+.kr-embedded .kr-payment-button {
+    width: 100%;
+    height: 50px;
+    background: #007bff;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: background-color 0.3s ease;
+}
+
+.kr-embedded .kr-payment-button:hover {
+    background: #0056b3;
+}
+
+.kr-embedded .kr-payment-button:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+/* Loading States */
+.kr-spinner {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error Messages */
+.kr-form-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 12px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.kr-field-error {
+    color: #dc3545;
+    font-size: 12px;
+    margin-top: 5px;
+    display: block;
+}
+
+/* Success Messages */
+.kr-form-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 12px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+/* Security Indicators */
+.kr-security-indicator {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.kr-security-icon {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+}
+
+/* Footer */
+.kr-embedded[kr-popin],
+div.kr-popin-modal-footer {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.kr-popin-modal-footer img {
+    height: 24px;
+    margin: 0 8px;
+    opacity: 0.7;
+}
+
+/* Installments */
+.kr-installment-selector {
+    margin-bottom: 20px;
+}
+
+.kr-installment-option {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.kr-installment-option:hover {
+    background: #f8f9fa;
+    border-color: #007bff;
+}
+
+.kr-installment-option.selected {
+    background: #e7f3ff;
+    border-color: #007bff;
+}
+
+.kr-installment-radio {
+    margin-right: 10px;
+}
+
+.kr-installment-details {
+    flex: 1;
+}
+
+.kr-installment-amount {
+    font-weight: 600;
+    color: #495057;
+}
+
+.kr-installment-total {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+/* Alternative Payment Methods */
+.kr-alternative-payment-methods {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 1px solid #e9ecef;
+}
+
+.kr-alternative-method {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.kr-alternative-method:hover {
+    background: #f8f9fa;
+    border-color: #007bff;
+}
+
+.kr-alternative-method-logo {
+    width: 40px;
+    height: 40px;
+    margin-right: 15px;
+}
+
+.kr-alternative-method-info {
+    flex: 1;
+}
+
+.kr-alternative-method-name {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 2px;
+}
+
+.kr-alternative-method-description {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .kr-embedded {
+        max-width: 100%;
+        margin: 0;
+        border-radius: 0;
+    }
+    
+    .kr-smart-form-modal-wrapper .kr-smart-form-modal .kr-smart-form-methods {
+        padding: 20px 15px;
+    }
+    
+    .kr-popin-shop-name {
+        padding: 15px;
+        font-size: 16px;
+    }
+    
+    .kr-expiry-wrapper,
+    .kr-security-code-wrapper {
+        width: 100%;
+        margin-bottom: 15px;
+    }
+    
+    .kr-security-code-wrapper {
+        margin-left: 0;
+    }
+    
+    .kr-payment-method-tab {
+        font-size: 14px;
+        padding: 10px 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .kr-embedded .kr-payment-button {
+        height: 45px;
+        font-size: 14px;
+    }
+    
+    .kr-pan,
+    .kr-expiry,
+    .kr-security-code,
+    .kr-card-holder-name {
+        height: 45px;
+        font-size: 14px;
+    }
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .kr-embedded {
+        border: 2px solid #000000;
+    }
+    
+    .kr-pan,
+    .kr-expiry,
+    .kr-security-code,
+    .kr-card-holder-name {
+        border: 2px solid #000000;
+    }
+    
+    .kr-embedded .kr-payment-button {
+        border: 2px solid #000000;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    .kr-pan,
+    .kr-expiry,
+    .kr-security-code,
+    .kr-card-holder-name,
+    .kr-embedded .kr-payment-button,
+    .kr-payment-method-tab,
+    .kr-installment-option,
+    .kr-alternative-method {
+        transition: none;
+    }
+    
+    .kr-spinner {
+        animation: none;
+    }
+}
+
+/* Custom Container for Next.js Integration */
+#payment-form {
+    width: 100%;
+    min-height: 400px;
+}
+
+#izipay-checkout-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Theme Variants */
+.kr-embedded.kr-theme-dark {
+    background: #2d3748;
+    color: #ffffff;
+}
+
+.kr-embedded.kr-theme-dark .kr-popin-shop-name {
+    background: #4a5568;
+    color: #ffffff;
+    border-bottom-color: #718096;
+}
+
+.kr-embedded.kr-theme-dark .kr-pan,
+.kr-embedded.kr-theme-dark .kr-expiry,
+.kr-embedded.kr-theme-dark .kr-security-code,
+.kr-embedded.kr-theme-dark .kr-card-holder-name {
+    background: #4a5568;
+    border-color: #718096;
+    color: #ffffff;
+}
+
+.kr-embedded.kr-theme-dark .kr-pan::placeholder,
+.kr-embedded.kr-theme-dark .kr-expiry::placeholder,
+.kr-embedded.kr-theme-dark .kr-security-code::placeholder,
+.kr-embedded.kr-theme-dark .kr-card-holder-name::placeholder {
+    color: #a0aec0;
+}
+
+/* Print Styles */
+@media print {
+    .kr-embedded {
+        box-shadow: none;
+        border: 1px solid #000000;
+    }
+    
+    .kr-embedded .kr-payment-button {
+        display: none;
+    }
+}
+
+/* Focus Management for Accessibility */
+.kr-embedded:focus-within {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* Screen Reader Only Content */
+.kr-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Additional Utility Classes */
+.kr-text-center {
+    text-align: center;
+}
+
+.kr-text-left {
+    text-align: left;
+}
+
+.kr-text-right {
+    text-align: right;
+}
+
+.kr-mb-small {
+    margin-bottom: 10px;
+}
+
+.kr-mb-medium {
+    margin-bottom: 20px;
+}
+
+.kr-mb-large {
+    margin-bottom: 30px;
+}
+
+.kr-hidden {
+    display: none;
+}
+
+.kr-visible {
+    display: block;
+}
+
+/* Animation Keyframes */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.kr-fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.kr-slide-in {
+    animation: slideIn 0.3s ease-out;
+}

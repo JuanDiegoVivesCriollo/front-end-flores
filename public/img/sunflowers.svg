@@ -1,0 +1,6 @@
+<!-- Placeholder para girasoles -->
+<svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="400" height="400" fill="#FFE0B3"/>
+  <circle cx="200" cy="200" r="80" fill="#fff" opacity="0.8"/>
+  <text x="200" y="210" font-family="Arial" font-size="40" fill="#FFA500" text-anchor="middle">🌻</text>
+</svg>
