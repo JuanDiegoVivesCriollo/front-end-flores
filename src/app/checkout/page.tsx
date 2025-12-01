@@ -1,1079 +1,1418 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { 
-  ShoppingCart, 
-  CheckCircle, 
-  ArrowLeft, 
-  Truck,
-  MapPin,
-  Clock,
-  CreditCard,
-  User
-} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useCart } from '@/context/CartContext';
-import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { apiClient } from '@/services/api';
-import GoogleStoreMapCheckout from '@/components/GoogleStoreMapCheckout';
-import DistrictSelector from '@/components/DistrictSelector';
-import PhoneInput from '@/components/PhoneInput';
-import IdentityInput from '@/components/IdentityInput';
-import AddressSelector from '@/components/AddressSelector';
+import { 
+  ArrowLeft, 
+  ShoppingBag, 
+  User, 
+  MapPin, 
+  CreditCard, 
+  Check,
+  Truck,
+  Store,
+  UserPlus,
+  Calendar,
+  ChevronRight,
+  Copy,
+  Upload,
+  Loader2,
+  X,
+  Phone,
+  MessageCircle
+} from 'lucide-react';
+import { useCart } from '@/context/CartContext';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
-const storeInfo = {
-  name: "Flores & Detalles Lima",
-  address: "Av. Próceres de la Independencia N°3301, Mercado Progreso Los Pinos, 2do. Piso / Tienda 12",
-  district: "San Juan de Lurigancho",
-  reference: "Al costado de Metro de Canto Rey - SJL",
-  phone: "+51 919 642 610",
-  hours: "Lun-Dom: 8:00 AM - 10:00 PM"
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+type CheckoutStep = 'delivery' | 'address' | 'payment' | 'processing' | 'confirmation';
+type DeliveryType = 'pickup' | 'delivery' | 'third_party';
+type PaymentMethod = 'card' | 'yape' | 'plin';
+
+interface District {
+  id: number;
+  name: string;
+  zone: string;
+  shipping_cost: number;
+  estimated_time: string;
+}
+
+interface StoreInfo {
+  name: string;
+  address: string;
+  phone: string;
+  hours: string;
+  google_maps_embed: string;
+  coordinates: { lat: number; lng: number };
+}
+
+interface PaymentInfo {
+  yape: {
+    phone: string;
+    qr_code: string;
+    name: string;
+    instructions: string[];
+  };
+  plin: {
+    phone: string;
+    qr_code: string;
+    name: string;
+    instructions: string[];
+  };
+  whatsapp: {
+    number: string;
+    message_template: string;
+  };
+}
 
 export default function CheckoutPage() {
-  const { items, total } = useCart();
-  const { user } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
-  const [shippingMethod, setShippingMethod] = useState<'delivery' | 'pickup'>('pickup');
-  const [deliveryAddress, setDeliveryAddress] = useState({
-    street: '',
-    district: '',
-    reference: '',
-    phone: user?.phone || '',
-    coordinates: null as { lat: number; lng: number } | null
-  });
-  const [shippingCost, setShippingCost] = useState(0);
-  const [isDistrictValid, setIsDistrictValid] = useState(false);
-  const [isDeliveryPhoneValid, setIsDeliveryPhoneValid] = useState(false);
-  const [isCustomerPhoneValid, setIsCustomerPhoneValid] = useState(false);
-  const [isIdentityValid, setIsIdentityValid] = useState(false);
+  const { flowers, complements, breakfasts, getSubtotal, getItemCount, clearCart } = useCart();
   
-  const [customerInfo, setCustomerInfo] = useState({
-    firstName: user?.name?.split(' ')[0] || '',
-    lastName: user?.name?.split(' ').slice(1).join(' ') || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-    identityType: 'DNI',
-    identityCode: '',
-    address: user?.address || '',
-    city: user?.city || '',
-    state: user?.city || 'Lima',
-    zipCode: user?.postal_code || '',
-    country: 'PE',
-    notes: '',
-    deliveryDate: '',
-    deliveryTimeSlot: ''
-  });
-  const [step, setStep] = useState(1); // 1: Método envío, 2: Datos, 3: Confirmación
+  const [currentStep, setCurrentStep] = useState<CheckoutStep>('delivery');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [orderNumber, setOrderNumber] = useState<string | null>(null);
+  
+  // Data from backend
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+  
+  // Form data
+  const [customerData, setCustomerData] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    dni: '',
+  });
+  
+  const [deliveryData, setDeliveryData] = useState({
+    district_id: '',
+    address: '',
+    reference: '',
+    recipient_name: '',
+    recipient_phone: '',
+    date: '',
+    time_slot: '',
+  });
+  
+  const [notes, setNotes] = useState('');
+  const [dedicatoryMessage, setDedicatoryMessage] = useState('');
+  
+  // Payment proof
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
+  const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  
+  // Loading states
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState('Cargando información...');
+  
+  // Errors
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Calcular costos de envío
-  const getShippingCost = () => {
-    if (shippingMethod === 'pickup') return 0;
-    return shippingCost; // Usar el costo calculado por el distrito
-  };
+  const itemCount = getItemCount();
+  const subtotal = getSubtotal();
+  const selectedDistrict = districts.find(d => d.id === Number(deliveryData.district_id));
+  const shippingCost = deliveryType === 'pickup' ? 0 : (selectedDistrict?.shipping_cost || 0);
+  const total = subtotal + shippingCost;
 
-  const getFinalTotalWithShipping = () => {
-    return total + getShippingCost();
-  };
+  // Fetch initial data
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setLoadingData(true);
+      setLoadingMessage('Cargando información de entrega...');
+      await fetchDistricts();
+      setLoadingMessage('Cargando información de la tienda...');
+      await fetchStoreInfo();
+      setLoadingMessage('Cargando métodos de pago...');
+      await fetchPaymentInfo();
+      setLoadingData(false);
+    };
+    loadInitialData();
+  }, []);
 
-  // Manejar cambio de distrito
-  const handleDistrictChange = (district: string, cost: number) => {
-    setDeliveryAddress(prev => ({ ...prev, district }));
-    setShippingCost(cost);
-  };
+  // Redirect if cart is empty
+  useEffect(() => {
+    if (itemCount === 0 && currentStep !== 'confirmation' && !loadingData) {
+      router.push('/');
+    }
+  }, [itemCount, currentStep, router, loadingData]);
 
-  // Manejar validación de distrito
-  const handleDistrictValidation = (isValid: boolean) => {
-    setIsDistrictValid(isValid);
-  };
-
-  // Función para extraer y configurar distrito automáticamente
-  const handleLocationSelect = async (location: { lat: number; lng: number; address: string }) => {
-    // Actualizar la dirección y coordenadas
-    setDeliveryAddress(prev => ({
-      ...prev,
-      street: location.address,
-      coordinates: { lat: location.lat, lng: location.lng }
-    }));
-
-    // Extraer distrito de la dirección
+  const fetchDistricts = async () => {
     try {
-      const deliveryService = await import('@/services/deliveryService');
-      const districts = await deliveryService.DeliveryService.getDistricts();
-      
-      // Función para normalizar nombres de distrito
-      const normalizeDistrictName = (name: string) => 
-        name.toLowerCase()
-            .replace(/[áàäâ]/g, 'a')
-            .replace(/[éèëê]/g, 'e')
-            .replace(/[íìïî]/g, 'i')
-            .replace(/[óòöô]/g, 'o')
-            .replace(/[úùüû]/g, 'u')
-            .replace(/[ñ]/g, 'n')
-            .replace(/[^a-z0-9\s]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-      const normalizedAddress = normalizeDistrictName(location.address);
-      
-      // Buscar distrito en la dirección
-      let matchedDistrict = null;
-      
-      // 1. Buscar coincidencia exacta con nombres de distrito
-      for (const district of districts) {
-        const normalizedDistrictName = normalizeDistrictName(district.name);
-        if (normalizedAddress.includes(normalizedDistrictName)) {
-          matchedDistrict = district;
-          break;
-        }
+      const response = await fetch(`${API_URL}/checkout/districts`);
+      const data = await response.json();
+      if (data.success) {
+        setDistricts(data.data);
       }
-      
-      // 2. Si no hay coincidencia exacta, buscar por palabras clave comunes
-      if (!matchedDistrict) {
-        const districtKeywords: { [key: string]: string } = {
-          'san juan de lurigancho': 'San Juan de Lurigancho',
-          'sjl': 'San Juan de Lurigancho',
-          'canto rey': 'San Juan de Lurigancho',
-          'miraflores': 'Miraflores',
-          'san isidro': 'San Isidro',
-          'surco': 'Santiago de Surco',
-          'santiago de surco': 'Santiago de Surco',
-          'la molina': 'La Molina',
-          'san borja': 'San Borja',
-          'chorrillos': 'Chorrillos',
-          'barranco': 'Barranco',
-          'magdalena': 'Magdalena del Mar',
-          'jesus maria': 'Jesús María',
-          'lince': 'Lince',
-          'breña': 'Breña',
-          'rimac': 'Rímac',
-          'los olivos': 'Los Olivos',
-          'san martin de porres': 'San Martín de Porres',
-          'independencia': 'Independencia',
-          'callao': 'Callao',
-          'bellavista': 'Bellavista',
-          'la perla': 'La Perla',
-          'ventanilla': 'Ventanilla'
-        };
-
-        for (const [keyword, districtName] of Object.entries(districtKeywords)) {
-          if (normalizedAddress.includes(keyword)) {
-            matchedDistrict = districts.find(d => d.name === districtName);
-            if (matchedDistrict) break;
-          }
-        }
-      }
-
-      // Si encontramos un distrito, configurarlo automáticamente
-      if (matchedDistrict) {
-        const cost = typeof matchedDistrict.shipping_cost === 'string' 
-          ? parseFloat(matchedDistrict.shipping_cost) 
-          : matchedDistrict.shipping_cost;
-        
-        handleDistrictChange(matchedDistrict.name, cost);
-        setIsDistrictValid(true);
-        
-        console.log('✅ Distrito detectado automáticamente:', {
-          distrito: matchedDistrict.name,
-          costo: cost,
-          direccion: location.address
-        });
-      } else {
-        // Si no se puede detectar el distrito, usar valores por defecto
-        setShippingCost(15);
-        setIsDistrictValid(false);
-        
-        console.log('⚠️ No se pudo detectar el distrito automáticamente:', {
-          direccion: location.address,
-          coordenadas: { lat: location.lat, lng: location.lng }
-        });
-      }
-      
     } catch (error) {
-      console.error('❌ Error al detectar distrito automáticamente:', error);
-      setShippingCost(15); // Costo por defecto
-      setIsDistrictValid(false);
+      console.error('Error fetching districts:', error);
     }
   };
 
-  useEffect(() => {
-    // Simplificar el estado de carga
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (user) {
-      const nameParts = (user.name || '').split(' ');
-      setCustomerInfo(prev => ({
-        ...prev,
-        firstName: nameParts[0] || prev.firstName,
-        lastName: nameParts.slice(1).join(' ') || prev.lastName,
-        email: user.email || prev.email,
-        phone: user.phone || prev.phone,
-        address: user.address || prev.address,
-        city: user.city || prev.city,
-        state: user.city || prev.state,
-        zipCode: user.postal_code || prev.zipCode
-      }));
+  const fetchStoreInfo = async () => {
+    try {
+      const response = await fetch(`${API_URL}/checkout/store-info`);
+      const data = await response.json();
+      if (data.success) {
+        setStoreInfo(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching store info:', error);
     }
-  }, [user]);
+  };
 
-  // Optimized callback functions
-  const handleIdentityChange = useCallback((value: string, isValid: boolean) => {
-    setCustomerInfo(prev => ({ ...prev, identityCode: value }));
-    setIsIdentityValid(isValid);
-  }, []);
+  const fetchPaymentInfo = async () => {
+    try {
+      const response = await fetch(`${API_URL}/checkout/payment-info`);
+      const data = await response.json();
+      if (data.success) {
+        setPaymentInfo(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching payment info:', error);
+    }
+  };
 
-  const handleDeliveryPhoneChange = useCallback((value: string, isValid: boolean) => {
-    setDeliveryAddress(prev => ({ ...prev, phone: value }));
-    setIsDeliveryPhoneValid(isValid);
-  }, []);
+  const handleCustomerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCustomerData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
 
-  const handleCustomerPhoneChange = useCallback((value: string, isValid: boolean) => {
-    setCustomerInfo(prev => ({ ...prev, phone: value }));
-    setIsCustomerPhoneValid(isValid);
-  }, []);
+  const handleDeliveryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setDeliveryData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
 
-  const handleContinue = () => {
-    if (step === 1) {
-      // Validar método de envío
-      if (shippingMethod === 'delivery') {
-        if (!deliveryAddress.street || !deliveryAddress.district || !deliveryAddress.phone) {
-          alert('Por favor completa todos los campos de la dirección de entrega');
-          return;
-        }
-        if (!isDistrictValid) {
-          alert('Por favor selecciona un distrito válido de la lista');
-          return;
-        }
-        if (!isDeliveryPhoneValid) {
-          alert('Por favor ingresa un número de teléfono válido (9 dígitos, empezando con 9)');
-          return;
-        }
-      }
-      // Para pickup, no necesitamos validación adicional ya que solo hay una tienda
-    } else if (step === 2) {
-      // Validar datos del cliente
-      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.identityCode) {
-        alert('Por favor completa todos los campos requeridos: nombres, apellidos, email y documento de identidad');
-        return;
-      }
-      
-      if (!isIdentityValid) {
-        alert('Por favor ingresa un documento de identidad válido');
-        return;
-      }
-
-      // Validar fecha y horario de entrega OBLIGATORIOS
-      if (!customerInfo.deliveryDate) {
-        alert('Por favor selecciona una fecha exacta de ' + (shippingMethod === 'pickup' ? 'recojo' : 'entrega'));
-        return;
-      }
-
-      if (!customerInfo.deliveryTimeSlot) {
-        alert('Por favor selecciona un horario específico de ' + (shippingMethod === 'pickup' ? 'recojo' : 'entrega'));
-        return;
-      }
-      
-      // Para pickup, validar teléfono
-      if (shippingMethod === 'pickup') {
-        if (!customerInfo.phone) {
-          alert('Por favor ingresa un número de teléfono válido');
-          return;
-        }
-        if (!isCustomerPhoneValid) {
-          alert('Por favor ingresa un número de teléfono válido (9 dígitos, empezando con 9)');
-          return;
-        }
-      }
-      
-      // Para delivery, el teléfono ya fue validado en el paso 1
+  const validateStep1 = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!deliveryType) {
+      newErrors.deliveryType = 'Selecciona un tipo de entrega';
+    }
+    if (!customerData.full_name.trim()) {
+      newErrors.full_name = 'El nombre es requerido';
+    }
+    if (!customerData.email.trim()) {
+      newErrors.email = 'El correo es requerido';
+    } else if (!/\S+@\S+\.\S+/.test(customerData.email)) {
+      newErrors.email = 'Correo inválido';
+    }
+    if (!customerData.phone.trim()) {
+      newErrors.phone = 'El teléfono es requerido';
+    }
+    if (!customerData.dni.trim()) {
+      newErrors.dni = 'El DNI es requerido';
     }
     
-    setStep(step + 1);
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleFinishOrder = async () => {
+  const validateStep2 = () => {
+    const newErrors: Record<string, string> = {};
+    
+    if (deliveryType !== 'pickup') {
+      if (!deliveryData.district_id) {
+        newErrors.district_id = 'Selecciona un distrito';
+      }
+      if (!deliveryData.address.trim()) {
+        newErrors.address = 'La dirección es requerida';
+      }
+    }
+    
+    if (deliveryType === 'third_party') {
+      if (!deliveryData.recipient_name.trim()) {
+        newErrors.recipient_name = 'El nombre del destinatario es requerido';
+      }
+      if (!deliveryData.recipient_phone.trim()) {
+        newErrors.recipient_phone = 'El teléfono del destinatario es requerido';
+      }
+    }
+    
+    if (!deliveryData.date) {
+      newErrors.date = 'La fecha de entrega es requerida';
+    }
+    if (!deliveryData.time_slot) {
+      newErrors.time_slot = 'El horario es requerido';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNextStep = async () => {
+    if (currentStep === 'delivery') {
+      if (validateStep1()) {
+        setCurrentStep('address');
+      }
+    } else if (currentStep === 'address') {
+      if (validateStep2()) {
+        setCurrentStep('payment');
+      }
+    }
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStep === 'address') {
+      setCurrentStep('delivery');
+    } else if (currentStep === 'payment') {
+      setCurrentStep('address');
+    }
+  };
+
+  const handleSelectPaymentMethod = (method: PaymentMethod) => {
+    setPaymentMethod(method);
+    if (method === 'yape' || method === 'plin') {
+      setShowPaymentModal(true);
+    } else if (method === 'card') {
+      createOrderAndPay();
+    }
+  };
+
+  const createOrderAndPay = async () => {
     setIsProcessing(true);
     
     try {
-      // Validaciones básicas
-      if (!items || items.length === 0) {
-        throw new Error('No hay productos en el carrito');
-      }
+      // Preparar items del carrito
+      const items = [
+        ...flowers.map(f => ({
+          type: 'flower' as const,
+          id: f.id,
+          name: f.name,
+          price: f.final_price || f.price,
+          quantity: f.quantity,
+          image_url: f.image_url,
+        })),
+        ...complements.map(c => ({
+          type: 'complement' as const,
+          id: c.id,
+          name: c.name,
+          price: c.price,
+          quantity: c.quantity,
+          image_url: c.image_url,
+        })),
+        ...breakfasts.map(b => ({
+          type: 'breakfast' as const,
+          id: b.id,
+          name: b.name,
+          price: b.price,
+          quantity: b.quantity,
+          image_url: b.image_url,
+        })),
+      ];
 
-      if (!user) {
-        throw new Error('Usuario no autenticado');
-      }
-
-      // Validar campos requeridos según método de envío
-      if (shippingMethod === 'delivery') {
-        if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.identityCode) {
-          throw new Error('Por favor complete todos los campos requeridos para la entrega');
-        }
-        if (!isIdentityValid) {
-          throw new Error('Por favor ingrese un documento de identidad válido');
-        }
-        if (!isDeliveryPhoneValid) {
-          throw new Error('Por favor ingrese un número de teléfono de contacto válido para la entrega');
-        }
-      } else {
-        if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.phone || !customerInfo.identityCode) {
-          throw new Error('Por favor complete todos los campos requeridos para el recojo');
-        }
-        if (!isIdentityValid) {
-          throw new Error('Por favor ingrese un documento de identidad válido');
-        }
-        if (!isCustomerPhoneValid) {
-          throw new Error('Por favor ingrese un número de teléfono válido (9 dígitos, empezando con 9)');
-        }
-      }
-
-      // 1. Crear la orden en el backend
-      const orderData = {
-        items: items.map(item => {
-          return {
-            flower_id: item.id,
-            item_type: 'flower' as const,
-            quantity: item.quantity,
-            price: parseFloat(item.price.toString()) // Asegurar que sea número
-          };
-        }),
-        shipping_address: {
-          name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
-          phone: shippingMethod === 'delivery' ? deliveryAddress.phone : customerInfo.phone,
-          address: shippingMethod === 'delivery' ? 
-            `${deliveryAddress.street}, ${deliveryAddress.district}${deliveryAddress.reference ? ', ' + deliveryAddress.reference : ''}` : 
-            'Recojo en tienda',
-          district: shippingMethod === 'delivery' ? deliveryAddress.district : undefined,
-          city: shippingMethod === 'delivery' ? deliveryAddress.district : customerInfo.city || 'Lima',
-          postal_code: customerInfo.zipCode || undefined,
-          coordinates: shippingMethod === 'delivery' && deliveryAddress.coordinates ? {
-            lat: deliveryAddress.coordinates.lat,
-            lng: deliveryAddress.coordinates.lng
-          } : undefined
+      // Preparar datos completos del checkout para enviar al backend
+      const checkoutData = {
+        customer: {
+          full_name: customerData.full_name,
+          email: customerData.email,
+          phone: customerData.phone,
+          dni: customerData.dni,
         },
-        billing_address: {
-          name: `${customerInfo.firstName} ${customerInfo.lastName}`.trim(),
-          phone: customerInfo.phone,
-          address: customerInfo.address || 'Lima',
-          city: customerInfo.city || 'Lima',
-          postal_code: customerInfo.zipCode || undefined
+        delivery_type: deliveryType,
+        delivery: {
+          district_id: deliveryData.district_id || null,
+          address: deliveryData.address || null,
+          reference: deliveryData.reference || null,
+          recipient_name: deliveryData.recipient_name || null,
+          recipient_phone: deliveryData.recipient_phone || null,
+          date: deliveryData.date,
+          time_slot: deliveryData.time_slot,
         },
-        customer_info: {
-          firstName: customerInfo.firstName,
-          lastName: customerInfo.lastName,
-          email: customerInfo.email,
-          phoneNumber: shippingMethod === 'delivery' ? deliveryAddress.phone : customerInfo.phone,
-          identityType: customerInfo.identityType,
-          identityCode: customerInfo.identityCode,
-          address: shippingMethod === 'delivery' ? 
-            `${deliveryAddress.street}, ${deliveryAddress.district}${deliveryAddress.reference ? ', ' + deliveryAddress.reference : ''}` :
-            customerInfo.address || 'Lima',
-          country: customerInfo.country,
-          state: customerInfo.state,
-          city: shippingMethod === 'delivery' ? deliveryAddress.district : customerInfo.city || 'Lima',
-          zipCode: customerInfo.zipCode
-        },
-        customer_notes: customerInfo.notes || undefined,
-        delivery_date: customerInfo.deliveryDate || undefined,
-        delivery_time_slot: customerInfo.deliveryTimeSlot || undefined,
-        payment_method: 'izipay' as const,
-        shipping_type: shippingMethod // Convert 'delivery' | 'pickup' to backend enum
+        payment_method: 'card',
+        items,
+        notes,
+        dedicatory_message: dedicatoryMessage,
       };
 
-      const orderResponse = await apiClient.createOrder(orderData);
-      
-      if (!orderResponse.success || !orderResponse.data) {
-        console.error('Order creation failed:', orderResponse);
-        throw new Error(orderResponse.message || 'Error al crear la orden');
-      }
-
-      // Handle different response structures safely
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const responseData: any = orderResponse.data;
-      const order = responseData.order || responseData;
-
-      // Si el método de pago es Izipay, el backend ahora devuelve form_token
-      if (orderData.payment_method === 'izipay' && responseData.payment?.form_token) {
-        const formToken = responseData.payment.form_token; // Usar form_token que funciona
-        const publicKey = responseData.payment?.public_key;
-
-        // Verificar si es un draft order o una orden real
-        const orderIdentifier = order.order_number; // Puede ser DRAFT-XXXX o ORD-XXXX
-        const isDraft = orderIdentifier.startsWith('DRAFT-');
-
-        // Guardar información del pedido para recuperar después del pago
-        localStorage.setItem('checkout-pending', JSON.stringify({
-          orderId: order.id,
-          orderNumber: orderIdentifier,
-          isDraft: isDraft,
-          total: order.total,
-          formToken: formToken,
-          publicKey: publicKey
-        }));
-
-        // Limpiar carrito ya que el draft/orden fue creada exitosamente
-        localStorage.removeItem('cart');
-
-        // Redirigir a página de procesamiento de pago usando el identificador correcto
-        const paymentUrl = `/payment/process?order=${orderIdentifier}`;
-        console.log('🔧 Redirecting to payment with', { 
-          paymentUrl, 
-          isDraft, 
-          orderIdentifier 
+      // NUEVO FLUJO: NO crear orden antes del pago
+      // Solo obtener formToken para el pago con tarjeta
+      try {
+        const paymentResponse = await fetch(`${API_URL}/payments/create-form-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: total,
+            customer_name: customerData.full_name,
+            customer_email: customerData.email,
+            customer_phone: customerData.phone,
+            customer_document: customerData.dni || '12345678',
+            customer_address: deliveryData.address || 'Lima, Perú',
+            // Enviar datos completos del checkout para crear la orden después del pago
+            checkout_data: checkoutData,
+          }),
         });
-        router.push(paymentUrl);
+
+        const paymentData = await paymentResponse.json();
+
+        if (paymentData.success && paymentData.data?.formToken) {
+          const draftOrderNumber = paymentData.data.draft_order_number;
+          
+          // Guardar datos para la página de pago (incluye payment_id para confirmar después)
+          localStorage.setItem('checkout-pending', JSON.stringify({
+            orderNumber: draftOrderNumber,
+            formToken: paymentData.data.formToken,
+            publicKey: paymentData.data.publicKey,
+            payment_id: paymentData.data.payment_id,
+            amount: total,
+            checkout_data: checkoutData, // Para enviar al confirmar pago
+          }));
+
+          // Guardar datos del pedido para envío de emails en la página de éxito
+          localStorage.setItem('checkout-order-data', JSON.stringify({
+            order_number: draftOrderNumber, // Será reemplazado por el número real después del pago
+            total: total,
+            customer_name: customerData.full_name,
+            customer_email: customerData.email,
+            customer_phone: customerData.phone,
+            customer_document: customerData.dni,
+            shipping_address: deliveryType === 'delivery' ? deliveryData.address : 'Recojo en tienda',
+            shipping_district: selectedDistrict?.name || 'Lima',
+            delivery_date: deliveryData.date,
+            delivery_time: deliveryData.time_slot,
+            notes: notes,
+            shipping_type: deliveryType,
+            payment_method: 'card',
+            items: items.map(item => ({
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          }));
+
+          // Redirigir a la página de procesamiento de pago
+          router.push(`/payment/process?draft=${draftOrderNumber}`);
+          return;
+        } else {
+          throw new Error(paymentData.message || 'Error al obtener token de pago');
+        }
+      } catch (paymentError) {
+        console.error('Error creating payment token:', paymentError);
+        alert('Error al iniciar el pago con tarjeta. Por favor intenta con otro método de pago.');
+        setIsProcessing(false);
         return;
       }
-
-      // Si llegamos aquí, es un método de pago diferente o hubo un problema con Izipay
-      
-      // Limpiar carrito
-      localStorage.removeItem('cart');
-      
-      // Redirigir a página de confirmación
-      router.push(`/payment/return?order=${order.order_number}&status=success`);
-
     } catch (error) {
-      console.error('❌ Error processing order:', error);
-      alert(error instanceof Error ? error.message : 'Error al procesar el pedido');
+      console.error('Error processing checkout:', error);
+      alert('Error al procesar el pedido');
+    } finally {
       setIsProcessing(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center relative">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-bright mx-auto mb-4"></div>
-          <p className="text-gray-600">Preparando tu compra...</p>
-        </div>
-        {/* Botón de emergencia para salir */}
-        <Link
-          href="/"
-          prefetch={false}
-          className="absolute top-4 left-4 text-pink-bright hover:text-pink-dark transition-colors"
-        >
-          ← Volver
-        </Link>
-      </div>
-    );
-  }
+  const handlePaymentProofSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPaymentProofFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentProofPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-  if (items.length === 0) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">No hay productos en el carrito</h2>
-          <p className="text-gray-600 mb-6">Agrega algunos productos antes de proceder al checkout</p>
-          <Link 
-            href="/" 
-            className="bg-pink-bright text-white px-6 py-3 rounded-lg hover:bg-pink-dark transition-colors"
-          >
-            Ir a la tienda
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const handleUploadProofAndComplete = async () => {
+    if (!paymentProofFile) {
+      alert('Por favor sube tu comprobante de pago');
+      return;
+    }
+
+    setUploadingProof(true);
+
+    try {
+      const items = [
+        ...flowers.map(f => ({
+          type: 'flower' as const,
+          id: f.id,
+          name: f.name,
+          price: f.final_price || f.price,
+          quantity: f.quantity,
+          image_url: f.image_url,
+        })),
+        ...complements.map(c => ({
+          type: 'complement' as const,
+          id: c.id,
+          name: c.name,
+          price: c.price,
+          quantity: c.quantity,
+          image_url: c.image_url,
+        })),
+        ...breakfasts.map(b => ({
+          type: 'breakfast' as const,
+          id: b.id,
+          name: b.name,
+          price: b.price,
+          quantity: b.quantity,
+          image_url: b.image_url,
+        })),
+      ];
+
+      const orderResponse = await fetch(`${API_URL}/checkout/order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: customerData,
+          delivery_type: deliveryType,
+          delivery: {
+            district_id: deliveryData.district_id || null,
+            address: deliveryData.address || null,
+            reference: deliveryData.reference || null,
+            recipient_name: deliveryData.recipient_name || null,
+            recipient_phone: deliveryData.recipient_phone || null,
+            date: deliveryData.date,
+            time_slot: deliveryData.time_slot,
+          },
+          payment_method: paymentMethod,
+          items,
+          notes,
+          dedicatory_message: dedicatoryMessage,
+        }),
+      });
+
+      const orderData = await orderResponse.json();
+
+      if (!orderData.success) {
+        throw new Error(orderData.message || 'Error al crear la orden');
+      }
+
+      const createdOrderNumber = orderData.data.order_number;
+      setOrderNumber(createdOrderNumber);
+
+      // Guardar datos del pedido para envío de emails en la página de éxito
+      localStorage.setItem('checkout-order-data', JSON.stringify({
+        order_number: createdOrderNumber,
+        total: total,
+        customer_name: customerData.full_name,
+        customer_email: customerData.email,
+        customer_phone: customerData.phone,
+        customer_document: customerData.dni,
+        shipping_address: deliveryType === 'delivery' ? deliveryData.address : 'Recojo en tienda',
+        shipping_district: selectedDistrict?.name || 'Lima',
+        delivery_date: deliveryData.date,
+        delivery_time: deliveryData.time_slot,
+        notes: notes,
+        shipping_type: deliveryType,
+        payment_method: paymentMethod,
+        items: items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+      }));
+
+      // Upload payment proof
+      const formData = new FormData();
+      formData.append('payment_proof', paymentProofFile);
+
+      const proofResponse = await fetch(`${API_URL}/checkout/order/${createdOrderNumber}/payment-proof`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      const proofData = await proofResponse.json();
+
+      if (!proofData.success) {
+        throw new Error(proofData.message || 'Error al subir comprobante');
+      }
+
+      setShowPaymentModal(false);
+      setCurrentStep('processing');
+
+      // Wait 3 seconds then send WhatsApp notification and redirect to success
+      setTimeout(async () => {
+        try {
+          const whatsappResponse = await fetch(`${API_URL}/checkout/notify-whatsapp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_number: createdOrderNumber }),
+          });
+
+          const whatsappData = await whatsappResponse.json();
+          
+          if (whatsappData.success && whatsappData.data.whatsapp_url) {
+            window.open(whatsappData.data.whatsapp_url, '_blank');
+          }
+        } catch (error) {
+          console.error('Error sending WhatsApp:', error);
+        }
+
+        // Limpiar carrito y redirigir a página de éxito con método de pago
+        clearCart();
+        router.push(`/checkout/success?order=${createdOrderNumber}&method=${paymentMethod}`);
+      }, 3000);
+
+    } catch (error) {
+      console.error('Error:', error);
+      alert(error instanceof Error ? error.message : 'Error al procesar el pago');
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const steps = [
+    { id: 'delivery', label: 'Entrega y Datos', icon: Truck },
+    { id: 'address', label: 'Dirección', icon: MapPin },
+    { id: 'payment', label: 'Pago', icon: CreditCard },
+    { id: 'confirmation', label: 'Confirmación', icon: Check },
+  ];
+
+  const timeSlots = [
+    { value: '8-10', label: '8:00 AM - 10:00 AM' },
+    { value: '10-12', label: '10:00 AM - 12:00 PM' },
+    { value: '12-14', label: '12:00 PM - 2:00 PM' },
+    { value: '14-16', label: '2:00 PM - 4:00 PM' },
+    { value: '16-18', label: '4:00 PM - 6:00 PM' },
+    { value: '18-20', label: '6:00 PM - 8:00 PM' },
+  ];
+
+  const today = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header - Responsive */}
-      <div className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-2 text-pink-bright hover:text-pink-dark transition-colors text-sm sm:text-base">
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">Volver a la tienda</span>
-              <span className="sm:hidden">Volver</span>
-            </Link>
-            
-            {/* Stepper - Responsive */}
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
-              <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-                step === 1 ? 'bg-pink-bright text-white' : step > 1 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-              }`}>
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-current bg-opacity-20 flex items-center justify-center text-xs font-bold">
-                  {step > 1 ? <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" /> : '1'}
-                </div>
-                <span className="hidden sm:inline">Envío</span>
-                <span className="sm:hidden">1</span>
-              </div>
-              
-              <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-                step === 2 ? 'bg-pink-bright text-white' : step > 2 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
-              }`}>
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-current bg-opacity-20 flex items-center justify-center text-xs font-bold">
-                  {step > 2 ? <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" /> : '2'}
-                </div>
-                <span className="hidden sm:inline">Datos</span>
-                <span className="sm:hidden">2</span>
-              </div>
-              
-              <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm ${
-                step === 3 ? 'bg-pink-bright text-white' : 'bg-gray-100 text-gray-600'
-              }`}>
-                <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-current bg-opacity-20 flex items-center justify-center text-xs font-bold">
-                  3
-                </div>
-                <span className="hidden sm:inline">Confirmación</span>
-                <span className="sm:hidden">3</span>
-              </div>
+    <main className="min-h-screen bg-gray-50 py-8">
+      {/* Loading overlay for initial data */}
+      <LoadingOverlay 
+        isLoading={loadingData}
+        message={loadingMessage}
+        subMessage="Preparando tu experiencia de compra"
+      />
+
+      {/* Loading overlay for order processing */}
+      <LoadingOverlay 
+        isLoading={isProcessing}
+        message="Creando tu orden"
+        subMessage="Por favor espera un momento..."
+        showProgress
+      />
+
+      {/* Loading overlay for payment proof upload */}
+      <LoadingOverlay 
+        isLoading={uploadingProof}
+        message="Procesando tu pago"
+        subMessage="Subiendo comprobante y verificando..."
+        showProgress
+      />
+
+      {/* Processing step overlay */}
+      {currentStep === 'processing' && (
+        <LoadingOverlay 
+          isLoading={true}
+          message="Finalizando tu pedido"
+          subMessage="Enviando notificación al vendedor..."
+          showProgress
+        />
+      )}
+
+      <div className="container mx-auto px-4 max-w-6xl">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <Link href="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-800">
+            <ArrowLeft className="w-5 h-5" />
+            <span>Volver a la tienda</span>
+          </Link>
+          <h1 className="font-display text-2xl font-bold text-gray-800">Checkout</h1>
+        </div>
+
+        {/* Progress Steps */}
+        {currentStep !== 'processing' && (
+          <div className="bg-white rounded-2xl p-4 mb-8">
+            <div className="flex items-center justify-between">
+              {steps.map((step, index) => {
+                const StepIcon = step.icon;
+                const stepIds = ['delivery', 'address', 'payment', 'confirmation'];
+                const currentIndex = stepIds.indexOf(currentStep);
+                const isActive = step.id === currentStep;
+                const isPast = stepIds.indexOf(step.id) < currentIndex;
+                
+                return (
+                  <div key={step.id} className="flex items-center">
+                    <div className={`flex items-center gap-2 ${isActive ? 'text-primary-600' : isPast ? 'text-green-600' : 'text-gray-400'}`}>
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        isActive ? 'bg-primary-100' : isPast ? 'bg-green-100' : 'bg-gray-100'
+                      }`}>
+                        {isPast ? <Check className="w-5 h-5" /> : <StepIcon className="w-5 h-5" />}
+                      </div>
+                      <span className="hidden md:block font-medium text-sm">{step.label}</span>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <ChevronRight className="w-5 h-5 text-gray-300 mx-2 md:mx-4" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
-      </div>
+        )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          
-          {/* Main Content - Responsive Order */}
-          <div className="order-2 lg:order-1 lg:col-span-2">
-            
-            {/* Step 1: Método de envío - Mobile Optimized */}
-            {step === 1 && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-white rounded-lg shadow-md p-4 sm:p-6"
-              >
-                <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2">
-                  <Truck className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Método de entrega
-                </h2>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2">
+            {/* Step 1: Delivery Type & Customer Data */}
+            {currentStep === 'delivery' && (
+              <div className="space-y-6">
+                {/* Delivery Type Selection */}
+                <div className="bg-white rounded-2xl p-6">
+                  <h2 className="font-semibold text-xl text-gray-800 mb-4">Tipo de Entrega</h2>
+                  {errors.deliveryType && (
+                    <p className="text-red-500 text-sm mb-4">{errors.deliveryType}</p>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                      onClick={() => setDeliveryType('pickup')}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        deliveryType === 'pickup'
+                          ? 'border-primary-500 bg-primary-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <Store className={`w-8 h-8 mb-2 ${deliveryType === 'pickup' ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <p className="font-medium">Recojo en Tienda</p>
+                      <p className="text-sm text-gray-500">Gratis</p>
+                    </button>
 
-                <div className="space-y-3 sm:space-y-4">
-                  {/* Pickup Option - Mobile Optimized */}
-                  <div className={`
-                    border-2 rounded-lg p-3 sm:p-4 cursor-pointer transition-all
-                    ${shippingMethod === 'pickup' ? 'border-pink-bright bg-pink-50' : 'border-gray-200 hover:border-gray-300'}
-                  `} onClick={() => setShippingMethod('pickup')}>
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="pickup"
-                        checked={shippingMethod === 'pickup'}
-                        onChange={() => setShippingMethod('pickup')}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            <span className="font-medium text-sm sm:text-base">Recojo en tienda</span>
-                          </div>
-                          <span className="text-xs sm:text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full w-fit">Gratis</span>
-                        </div>
-                        <p className="text-xs sm:text-sm text-gray-600 mb-2">
-                          Recoge tu pedido directamente en nuestra tienda
-                        </p>
-                        <div className="flex items-center gap-1 text-xs text-gray-500 mb-3">
-                          <Clock className="w-3 h-3" />
-                          <span>Listo en 2-4 horas</span>
-                        </div>
-                        
-                        {shippingMethod === 'pickup' && (
-                          <div className="mt-3 sm:mt-4">
-                            <div className="border rounded-lg p-3 sm:p-4 bg-green-50 border-green-200">
-                              <div className="flex items-start gap-3">
-                                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mt-1 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-gray-800 text-sm sm:text-base">{storeInfo.name}</h4>
-                                  <p className="text-xs sm:text-sm text-gray-600 mb-1">{storeInfo.address}</p>
-                                  <p className="text-xs sm:text-sm text-gray-500">{storeInfo.district}</p>
-                                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-xs text-gray-500">
-                                    <span className="break-all">📞 {storeInfo.phone}</span>
-                                    <span>🕒 {storeInfo.hours}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Store Map Component */}
-                            <div className="mt-3 sm:mt-4">
-                              <GoogleStoreMapCheckout />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => setDeliveryType('delivery')}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        deliveryType === 'delivery'
+                          ? 'border-primary-500 bg-primary-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <Truck className={`w-8 h-8 mb-2 ${deliveryType === 'delivery' ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <p className="font-medium">Envío a Domicilio</p>
+                      <p className="text-sm text-gray-500">Según distrito</p>
+                    </button>
+
+                    <button
+                      onClick={() => setDeliveryType('third_party')}
+                      className={`p-4 rounded-xl border-2 transition-all text-left ${
+                        deliveryType === 'third_party'
+                          ? 'border-primary-500 bg-primary-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <UserPlus className={`w-8 h-8 mb-2 ${deliveryType === 'third_party' ? 'text-primary-600' : 'text-gray-400'}`} />
+                      <p className="font-medium">Envío a Tercero</p>
+                      <p className="text-sm text-gray-500">Otra persona</p>
+                    </button>
                   </div>
 
-                  {/* Delivery Option - Mobile Optimized */}
-                  <div className={`
-                    border-2 rounded-lg p-3 sm:p-4 cursor-pointer transition-all
-                    ${shippingMethod === 'delivery' ? 'border-pink-bright bg-pink-50' : 'border-gray-200 hover:border-gray-300'}
-                  `} onClick={() => setShippingMethod('delivery')}>
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name="shipping"
-                        value="delivery"
-                        checked={shippingMethod === 'delivery'}
-                        onChange={() => setShippingMethod('delivery')}
-                        className="mt-1 flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
-                          <span className="font-medium text-sm sm:text-base">Entrega a domicilio</span>
-                          <span className="text-xs sm:text-sm bg-green-100 text-green-800 px-2 py-1 rounded-full w-fit">Precio automático</span>
-                        </div>
-                        <p className="text-xs sm:text-sm text-gray-600 mb-2">
-                          Entregamos en todos los distritos de Lima y Callao con precios transparentes
-                        </p>
-                        <div className="flex items-center gap-1 text-xs text-gray-500 mb-3">
-                          <Clock className="w-3 h-3" />
-                          <span>Entrega en 2-4 horas</span>
-                        </div>
-                        
-                        {shippingMethod === 'delivery' && (
-                          <div className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
-                            {/* Selector de dirección avanzado */}
-                            <div className="space-y-3 sm:space-y-4">
-                              <h4 className="font-medium text-gray-700 mb-2 text-sm sm:text-base">Dirección de entrega</h4>
-                              <AddressSelector
-                                onLocationSelect={handleLocationSelect}
-                                defaultLocation={
-                                  deliveryAddress.coordinates
-                                    ? {
-                                        lat: deliveryAddress.coordinates.lat,
-                                        lng: deliveryAddress.coordinates.lng,
-                                        address: deliveryAddress.street
-                                      }
-                                    : undefined
-                                }
-                              />
-                            </div>
-
-                            {/* Distrito y teléfono - Mobile Stack */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <DistrictSelector
-                                selectedDistrict={deliveryAddress.district}
-                                onDistrictChange={handleDistrictChange}
-                                onValidationChange={handleDistrictValidation}
-                                className="w-full"
-                              />
-                              <PhoneInput
-                                value={deliveryAddress.phone}
-                                onChange={handleDeliveryPhoneChange}
-                                placeholder="987 654 321"
-                                label=""
-                                required
-                                className=""
-                              />
-                            </div>
-                            
-                            {/* Referencia */}
-                            <input
-                              type="text"
-                              placeholder="Referencia (opcional) - Ej: Casa color azul, 3er piso, etc."
-                              value={deliveryAddress.reference}
-                              onChange={(e) => setDeliveryAddress(prev => ({ ...prev, reference: e.target.value }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm"
-                            />
-                          </div>
-                        )}
+                  {deliveryType === 'pickup' && storeInfo && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                      <h3 className="font-medium mb-2">📍 Ubicación de la tienda</h3>
+                      <p className="text-sm text-gray-600 mb-2">{storeInfo.address}</p>
+                      <p className="text-sm text-gray-600 mb-3">{storeInfo.hours}</p>
+                      <div className="rounded-lg overflow-hidden h-48">
+                        <iframe
+                          src={storeInfo.google_maps_embed}
+                          width="100%"
+                          height="100%"
+                          style={{ border: 0 }}
+                          allowFullScreen
+                          loading="lazy"
+                          referrerPolicy="no-referrer-when-downgrade"
+                        />
                       </div>
+                    </div>
+                  )}
+
+                  {deliveryType === 'delivery' && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-xl">
+                      <p className="text-sm text-blue-700">
+                        📦 En el siguiente paso podrás ingresar la dirección de entrega y seleccionar tu distrito.
+                      </p>
+                    </div>
+                  )}
+
+                  {deliveryType === 'third_party' && (
+                    <div className="mt-4 p-4 bg-purple-50 rounded-xl">
+                      <p className="text-sm text-purple-700">
+                        🎁 En el siguiente paso podrás ingresar los datos del destinatario y la dirección de entrega.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Customer Data */}
+                <div className="bg-white rounded-2xl p-6">
+                  <h2 className="font-semibold text-xl text-gray-800 mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    Tus Datos Personales
+                  </h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo *</label>
+                      <input
+                        type="text"
+                        name="full_name"
+                        value={customerData.full_name}
+                        onChange={handleCustomerChange}
+                        className={`w-full px-4 py-3 rounded-xl border ${errors.full_name ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                        placeholder="Juan Pérez"
+                      />
+                      {errors.full_name && <p className="text-red-500 text-sm mt-1">{errors.full_name}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Correo electrónico *</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={customerData.email}
+                        onChange={handleCustomerChange}
+                        className={`w-full px-4 py-3 rounded-xl border ${errors.email ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                        placeholder="juan@email.com"
+                      />
+                      {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={customerData.phone}
+                        onChange={handleCustomerChange}
+                        className={`w-full px-4 py-3 rounded-xl border ${errors.phone ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                        placeholder="999 888 777"
+                      />
+                      {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">DNI *</label>
+                      <input
+                        type="text"
+                        name="dni"
+                        value={customerData.dni}
+                        onChange={handleCustomerChange}
+                        className={`w-full px-4 py-3 rounded-xl border ${errors.dni ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                        placeholder="12345678"
+                        maxLength={8}
+                      />
+                      {errors.dni && <p className="text-red-500 text-sm mt-1">{errors.dni}</p>}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex justify-end mt-4 sm:mt-6">
-                  <button
-                    onClick={handleContinue}
-                    className="w-full sm:w-auto bg-pink-bright text-white px-6 py-2 sm:py-3 rounded-lg hover:bg-pink-dark transition-colors text-sm sm:text-base font-medium"
-                  >
-                    Continuar
-                  </button>
-                </div>
-              </motion.div>
+                <button onClick={handleNextStep} className="w-full btn-primary py-4">
+                  Siguiente Paso
+                </button>
+              </div>
             )}
 
-            {/* Step 2: Información del cliente - Mobile Optimized */}
-            {step === 2 && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-white rounded-lg shadow-md p-4 sm:p-6"
-              >
-                <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2">
-                  <User className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Información del cliente
-                </h2>
+            {/* Step 2: Address & Schedule */}
+            {currentStep === 'address' && (
+              <div className="space-y-6">
+                {deliveryType !== 'pickup' && (
+                  <div className="bg-white rounded-2xl p-6">
+                    <h2 className="font-semibold text-xl text-gray-800 mb-4 flex items-center gap-2">
+                      <MapPin className="w-5 h-5" />
+                      {deliveryType === 'third_party' ? 'Dirección del Destinatario' : 'Dirección de Entrega'}
+                    </h2>
 
-                {/* Mostrar datos ya capturados */}
-                {shippingMethod === 'delivery' && (
-                  <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h3 className="font-medium text-blue-900 mb-2">Datos de entrega confirmados</h3>
-                    <div className="text-sm text-blue-800 space-y-1">
-                      <p><span className="font-medium">Dirección:</span> {deliveryAddress.street}, {deliveryAddress.district}</p>
-                      {deliveryAddress.reference && <p><span className="font-medium">Referencia:</span> {deliveryAddress.reference}</p>}
-                      <p><span className="font-medium">Teléfono de contacto:</span> {deliveryAddress.phone}</p>
+                    {deliveryType === 'third_party' && (
+                      <div className="grid md:grid-cols-2 gap-4 mb-4 pb-4 border-b">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del destinatario *</label>
+                          <input
+                            type="text"
+                            name="recipient_name"
+                            value={deliveryData.recipient_name}
+                            onChange={handleDeliveryChange}
+                            className={`w-full px-4 py-3 rounded-xl border ${errors.recipient_name ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                            placeholder="María García"
+                          />
+                          {errors.recipient_name && <p className="text-red-500 text-sm mt-1">{errors.recipient_name}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono del destinatario *</label>
+                          <input
+                            type="tel"
+                            name="recipient_phone"
+                            value={deliveryData.recipient_phone}
+                            onChange={handleDeliveryChange}
+                            className={`w-full px-4 py-3 rounded-xl border ${errors.recipient_phone ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                            placeholder="999 888 777"
+                          />
+                          {errors.recipient_phone && <p className="text-red-500 text-sm mt-1">{errors.recipient_phone}</p>}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Distrito *</label>
+                        <select
+                          name="district_id"
+                          value={deliveryData.district_id}
+                          onChange={handleDeliveryChange}
+                          className={`w-full px-4 py-3 rounded-xl border ${errors.district_id ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                        >
+                          <option value="">Seleccionar distrito</option>
+                          {districts.map(district => (
+                            <option key={district.id} value={district.id}>
+                              {district.name} - S/ {Number(district.shipping_cost).toFixed(2)}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.district_id && <p className="text-red-500 text-sm mt-1">{errors.district_id}</p>}
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Dirección completa *</label>
+                        <input
+                          type="text"
+                          name="address"
+                          value={deliveryData.address}
+                          onChange={handleDeliveryChange}
+                          className={`w-full px-4 py-3 rounded-xl border ${errors.address ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                          placeholder="Av. Principal 123, Dpto 4B"
+                        />
+                        {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Referencia (opcional)</label>
+                        <input
+                          type="text"
+                          name="reference"
+                          value={deliveryData.reference}
+                          onChange={handleDeliveryChange}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 outline-none"
+                          placeholder="Cerca del parque, frente a..."
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
 
-                <p className="text-sm text-gray-600 mb-4">
-                  Complete los datos personales para finalizar su pedido. Los campos marcados se autocompletarán si ya tiene una cuenta.
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="sm:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombres *
-                    </label>
-                    <input
-                      type="text"
-                      value={customerInfo.firstName}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, firstName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm sm:text-base"
-                      placeholder="Ej: María José"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Apellidos *
-                    </label>
-                    <input
-                      type="text"
-                      value={customerInfo.lastName}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, lastName: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm sm:text-base"
-                      placeholder="Ej: García López"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email *
-                    </label>
-                    <input
-                      type="email"
-                      value={customerInfo.email}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm sm:text-base"
-                      placeholder="correo@ejemplo.com"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-1">
-                    <IdentityInput
-                      type={customerInfo.identityType as 'DNI' | 'CE' | 'PS'}
-                      value={customerInfo.identityCode}
-                      onChange={handleIdentityChange}
-                      label="Documento de Identidad"
-                      required
-                      className="w-full"
-                    />
-                    
-                    {/* Selector de tipo de documento como select pequeño debajo */}
-                    <select
-                      value={customerInfo.identityType}
-                      onChange={(e) => setCustomerInfo(prev => ({ 
-                        ...prev, 
-                        identityType: e.target.value,
-                        identityCode: '' // Limpiar cuando cambia el tipo
-                      }))}
-                      className="mt-1 w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-pink-bright focus:border-transparent"
-                    >
-                      <option value="DNI">DNI (Peruanos)</option>
-                      <option value="CE">Carné de Extranjería</option>
-                      <option value="PS">Pasaporte</option>
-                    </select>
-                  </div>
-
-                  {/* Solo mostrar estos campos adicionales si NO son delivery (ya los capturamos antes) */}
-                  {shippingMethod === 'pickup' && (
-                    <>
-                      <div className="sm:col-span-1">
-                        <PhoneInput
-                          value={customerInfo.phone}
-                          onChange={handleCustomerPhoneChange}
-                          label="Teléfono de contacto"
-                          placeholder="987 654 321"
-                          required
-                        />
-                      </div>
-
-                      <div className="sm:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Ciudad
-                        </label>
-                        <input
-                          type="text"
-                          value={customerInfo.city}
-                          onChange={(e) => setCustomerInfo(prev => ({ ...prev, city: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm sm:text-base"
-                          placeholder="Lima"
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {/* Para delivery, usar los datos ya capturados pero permitir actualizar el teléfono */}
-                  {shippingMethod === 'delivery' && (
-                    <div className="sm:col-span-2">
-                      <div className="p-3 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600 mb-2">
-                          <span className="font-medium">Teléfono de contacto:</span> {deliveryAddress.phone}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Si desea cambiar el teléfono, regrese al paso anterior
-                        </p>
-                      </div>
+                {deliveryType === 'pickup' && storeInfo && (
+                  <div className="bg-white rounded-2xl p-6">
+                    <h2 className="font-semibold text-xl text-gray-800 mb-4 flex items-center gap-2">
+                      <Store className="w-5 h-5" />
+                      Confirmar Recojo en Tienda
+                    </h2>
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <p className="font-medium">{storeInfo.name}</p>
+                      <p className="text-sm text-gray-600 mt-1">{storeInfo.address}</p>
+                      <p className="text-sm text-gray-600">{storeInfo.hours}</p>
+                      <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
+                        <Phone className="w-4 h-4" />
+                        {storeInfo.phone}
+                      </p>
                     </div>
-                  )}
-
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Notas adicionales (opcional)
-                    </label>
-                    <textarea
-                      value={customerInfo.notes}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, notes: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm sm:text-base"
-                      rows={3}
-                      placeholder="Instrucciones especiales, dedicatoria, preferencias de horario..."
-                    />
                   </div>
+                )}
 
-                  {/* Fechas OBLIGATORIAS */}
-                  <div className="sm:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <span className="text-red-500">*</span> {shippingMethod === 'pickup' ? 'Fecha exacta de recojo' : 'Fecha exacta de entrega'}
-                    </label>
-                    <input
-                      type="date"
-                      value={customerInfo.deliveryDate}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, deliveryDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm sm:text-base"
-                      min={new Date().toISOString().split('T')[0]}
-                      required
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Campo obligatorio para coordinar la {shippingMethod === 'pickup' ? 'recojo' : 'entrega'}</p>
-                  </div>
-
-                  <div className="sm:col-span-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <span className="text-red-500">*</span> {shippingMethod === 'pickup' ? 'Hora exacta de recojo' : 'Hora exacta de entrega'}
-                    </label>
-                    <select
-                      value={customerInfo.deliveryTimeSlot}
-                      onChange={(e) => setCustomerInfo(prev => ({ ...prev, deliveryTimeSlot: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-bright focus:border-transparent text-sm sm:text-base"
-                      required
-                    >
-                      <option value="">-- Selecciona un horario --</option>
-                      <option value="9:00 AM - 10:00 AM">9:00 AM - 10:00 AM</option>
-                      <option value="10:00 AM - 11:00 AM">10:00 AM - 11:00 AM</option>
-                      <option value="11:00 AM - 12:00 PM">11:00 AM - 12:00 PM</option>
-                      <option value="12:00 PM - 1:00 PM">12:00 PM - 1:00 PM</option>
-                      <option value="1:00 PM - 2:00 PM">1:00 PM - 2:00 PM</option>
-                      <option value="2:00 PM - 3:00 PM">2:00 PM - 3:00 PM</option>
-                      <option value="3:00 PM - 4:00 PM">3:00 PM - 4:00 PM</option>
-                      <option value="4:00 PM - 5:00 PM">4:00 PM - 5:00 PM</option>
-                      <option value="5:00 PM - 6:00 PM">5:00 PM - 6:00 PM</option>
-                      <option value="6:00 PM - 7:00 PM">6:00 PM - 7:00 PM</option>
-                      <option value="7:00 PM - 8:00 PM">7:00 PM - 8:00 PM</option>
-                      <option value="8:00 PM - 9:00 PM">8:00 PM - 9:00 PM</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Horario específico requerido para programar la {shippingMethod === 'pickup' ? 'recojo' : 'entrega'}</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between gap-3 mt-4 sm:mt-6">
-                  <button
-                    onClick={() => setStep(1)}
-                    className="order-2 sm:order-1 text-gray-600 hover:text-gray-800 flex items-center justify-center gap-2 py-2 text-sm sm:text-base"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Volver
-                  </button>
-                  <button
-                    onClick={handleContinue}
-                    className="order-1 sm:order-2 w-full sm:w-auto bg-pink-bright text-white px-6 py-2 sm:py-3 rounded-lg hover:bg-pink-dark transition-colors text-sm sm:text-base font-medium"
-                  >
-                    Continuar
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Step 3: Confirmación - Mobile Optimized */}
-            {step === 3 && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-white rounded-lg shadow-md p-4 sm:p-6"
-              >
-                <h2 className="text-lg sm:text-xl font-semibold mb-4 sm:mb-6 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Confirmación del pedido
-                </h2>
-
-                {/* Resumen del método de envío - Mobile Optimized */}
-                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-medium mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
-                    {shippingMethod === 'delivery' ? <Truck className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
-                    {shippingMethod === 'delivery' ? 'Entrega a domicilio' : 'Recojo en tienda'}
-                  </h3>
-                  
-                  {shippingMethod === 'delivery' ? (
-                    <div className="text-xs sm:text-sm text-gray-600 space-y-1">
-                      <p><strong>Dirección:</strong> {deliveryAddress.street}, {deliveryAddress.district}</p>
-                      {deliveryAddress.reference && <p><strong>Referencia:</strong> {deliveryAddress.reference}</p>}
-                      <p><strong>Teléfono:</strong> {deliveryAddress.phone}</p>
-                      <p><strong>Costo de envío:</strong> S/. {getShippingCost().toFixed(2)}</p>
-                    </div>
-                  ) : (
-                    <div className="text-xs sm:text-sm text-gray-600 space-y-1">
-                      <p><strong>Tienda:</strong> {storeInfo.name}</p>
-                      <p><strong>Dirección:</strong> {storeInfo.address}</p>
-                      <p><strong>Distrito:</strong> {storeInfo.district}</p>
-                      <p><strong>Horario:</strong> {storeInfo.hours}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Resumen del cliente - Mobile Optimized */}
-                <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-medium mb-2 sm:mb-3 text-sm sm:text-base">Datos del cliente</h3>
-                  <div className="text-xs sm:text-sm text-gray-600 grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2">
-                    <p><strong>Nombre:</strong> {customerInfo.firstName} {customerInfo.lastName}</p>
-                    <p><strong>Email:</strong> <span className="break-all">{customerInfo.email}</span></p>
-                    <p><strong>Teléfono:</strong> {customerInfo.phone}</p>
-                    <p><strong>Documento:</strong> {customerInfo.identityType} {customerInfo.identityCode}</p>
-                  </div>
-                  {customerInfo.notes && (
-                    <div className="mt-2">
-                      <p className="text-xs sm:text-sm"><strong>Notas:</strong> {customerInfo.notes}</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col sm:flex-row justify-between gap-3">
-                  <button
-                    onClick={() => setStep(2)}
-                    className="order-2 sm:order-1 text-gray-600 hover:text-gray-800 flex items-center justify-center gap-2 py-2 text-sm sm:text-base"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Volver
-                  </button>
-                  <button
-                    onClick={handleFinishOrder}
-                    disabled={isProcessing}
-                    className="order-1 sm:order-2 w-full sm:w-auto bg-pink-bright text-white px-6 sm:px-8 py-3 rounded-lg hover:bg-pink-dark transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2 text-sm sm:text-base font-medium"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        Proceder al pago
-                      </>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-          </div>
-
-          {/* Sidebar - Resumen del pedido - Mobile First */}
-          <div className="order-1 lg:order-2 lg:col-span-1">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-lg shadow-md p-4 sm:p-6 lg:sticky lg:top-4"
-            >
-              <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
-                Resumen del pedido
-              </h3>
-
-              {/* Items - Mobile Optimized */}
-              <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
-                {items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 bg-gray-50 rounded-lg">
-                    <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/placeholder-flower.jpg';
-                        }}
+                <div className="bg-white rounded-2xl p-6">
+                  <h2 className="font-semibold text-xl text-gray-800 mb-4 flex items-center gap-2">
+                    <Calendar className="w-5 h-5" />
+                    Fecha y Hora de {deliveryType === 'pickup' ? 'Recojo' : 'Entrega'}
+                  </h2>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
+                      <input
+                        type="date"
+                        name="date"
+                        value={deliveryData.date}
+                        onChange={handleDeliveryChange}
+                        min={today}
+                        className={`w-full px-4 py-3 rounded-xl border ${errors.date ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
                       />
+                      {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-xs sm:text-sm text-gray-800 truncate">{item.name}</h4>
-                      <p className="text-xs text-gray-600">Cantidad: {item.quantity}</p>
-                    </div>
-                    <div className="text-xs sm:text-sm font-medium text-gray-800 flex-shrink-0">
-                      S/. {(item.price * item.quantity).toFixed(2)}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Horario *</label>
+                      <select
+                        name="time_slot"
+                        value={deliveryData.time_slot}
+                        onChange={handleDeliveryChange}
+                        className={`w-full px-4 py-3 rounded-xl border ${errors.time_slot ? 'border-red-500' : 'border-gray-200'} focus:border-primary-500 outline-none`}
+                      >
+                        <option value="">Seleccionar horario</option>
+                        {timeSlots.map(slot => (
+                          <option key={slot.value} value={slot.value}>{slot.label}</option>
+                        ))}
+                      </select>
+                      {errors.time_slot && <p className="text-red-500 text-sm mt-1">{errors.time_slot}</p>}
                     </div>
                   </div>
-                ))}
-              </div>
+                </div>
 
-              {/* Totals - Mobile Optimized */}
-              <div className="border-t border-gray-200 pt-3 sm:pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">S/. {total.toFixed(2)}</span>
+                <div className="bg-white rounded-2xl p-6">
+                  <h2 className="font-semibold text-xl text-gray-800 mb-4 flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5" />
+                    Mensaje de Dedicatoria (opcional)
+                  </h2>
+                  <textarea
+                    value={dedicatoryMessage}
+                    onChange={(e) => setDedicatoryMessage(e.target.value)}
+                    rows={3}
+                    maxLength={300}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-primary-500 outline-none resize-none"
+                    placeholder="Escribe un mensaje especial para el destinatario..."
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{dedicatoryMessage.length}/300 caracteres</p>
                 </div>
-                
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Envío</span>
-                  <span className="font-medium">
-                    {shippingMethod === 'pickup' 
-                      ? 'Gratis' 
-                      : getShippingCost() > 0 
-                        ? `S/. ${getShippingCost().toFixed(2)}`
-                        : 'Seleccionar distrito'
-                    }
-                  </span>
-                </div>
-                
-                <div className="flex justify-between text-base sm:text-lg font-bold pt-2 border-t border-gray-200">
-                  <span>Total</span>
-                  <span className="text-pink-bright">S/. {getFinalTotalWithShipping().toFixed(2)}</span>
+
+                <div className="flex gap-4">
+                  <button onClick={handlePreviousStep} className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50">
+                    Volver
+                  </button>
+                  <button onClick={handleNextStep} className="flex-1 btn-primary py-3">
+                    Continuar al Pago
+                  </button>
                 </div>
               </div>
+            )}
 
-              {/* Delivery Info - Mobile Optimized */}
-              {shippingMethod === 'delivery' && (
-                <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-green-50 rounded-lg text-xs sm:text-sm text-green-700">
-                  <p className="font-medium">✅ Información del envío</p>
-                  {deliveryAddress.district ? (
-                    <p>Costo de envío calculado automáticamente para {deliveryAddress.district}</p>
-                  ) : (
-                    <p>Selecciona tu distrito para ver el costo de envío</p>
-                  )}
+            {/* Step 3: Payment */}
+            {currentStep === 'payment' && (
+              <div className="bg-white rounded-2xl p-6">
+                <h2 className="font-semibold text-xl text-gray-800 mb-6 flex items-center gap-2">
+                  <CreditCard className="w-5 h-5" />
+                  Método de Pago
+                </h2>
+                
+                <div className="space-y-4">
+                  <button
+                    onClick={() => handleSelectPaymentMethod('card')}
+                    disabled={isProcessing}
+                    className={`w-full p-4 rounded-xl border-2 transition-all flex flex-col gap-3 ${
+                      paymentMethod === 'card' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 w-full">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <CreditCard className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 text-left">
+                        <p className="font-medium">Tarjeta de Crédito/Débito</p>
+                        <p className="text-sm text-gray-500">Visa, Mastercard, American Express</p>
+                      </div>
+                    </div>
+                    {/* Iconos de tarjetas */}
+                    <div className="flex items-center gap-2 flex-wrap pl-16">
+                      <Image src="/img/iconospagos/visa.png" alt="Visa" width={40} height={26} className="object-contain" />
+                      <Image src="/img/iconospagos/mastercad.png" alt="Mastercard" width={40} height={26} className="object-contain" />
+                      <Image src="/img/iconospagos/bcp.png" alt="BCP" width={40} height={26} className="object-contain" />
+                      <Image src="/img/iconospagos/interbank.png" alt="Interbank" width={40} height={26} className="object-contain" />
+                      <Image src="/img/iconospagos/bbva.png" alt="BBVA" width={40} height={26} className="object-contain" />
+                      <Image src="/img/iconospagos/scotianbank.png" alt="Scotiabank" width={40} height={26} className="object-contain" />
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => handleSelectPaymentMethod('yape')}
+                    disabled={isProcessing}
+                    className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
+                      paymentMethod === 'yape' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden bg-white">
+                      <Image src="/img/iconospagos/yape.png" alt="Yape" width={48} height={48} className="object-contain" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="font-medium">Yape</p>
+                      <p className="text-sm text-gray-500">Paga con tu app de Yape</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => handleSelectPaymentMethod('plin')}
+                    disabled={isProcessing}
+                    className={`w-full p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
+                      paymentMethod === 'plin' ? 'border-primary-500 bg-primary-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden bg-white">
+                      <Image src="/img/iconospagos/plin.png" alt="Plin" width={48} height={48} className="object-contain" />
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="font-medium">Plin</p>
+                      <p className="text-sm text-gray-500">Paga desde tu banca móvil</p>
+                    </div>
+                  </button>
                 </div>
-              )}
-            </motion.div>
+
+                {isProcessing && (
+                  <div className="mt-6 flex items-center justify-center gap-2 text-gray-600">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Procesando...</span>
+                  </div>
+                )}
+
+                <div className="mt-6">
+                  <button onClick={handlePreviousStep} className="px-6 py-3 border border-gray-300 rounded-xl hover:bg-gray-50">
+                    Volver
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Processing Step */}
+            {currentStep === 'processing' && (
+              <div className="bg-white rounded-2xl p-8 text-center">
+                <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Loader2 className="w-10 h-10 text-primary-600 animate-spin" />
+                </div>
+                <h2 className="font-display text-2xl font-bold text-gray-800 mb-2">
+                  Procesando tu pedido...
+                </h2>
+                <p className="text-gray-600 mb-4">
+                  Estamos verificando tu comprobante de pago
+                </p>
+                <p className="text-sm text-gray-500">
+                  En unos segundos serás redirigido a WhatsApp para confirmar tu pedido
+                </p>
+              </div>
+            )}
+
+            {/* Confirmation Step */}
+            {currentStep === 'confirmation' && (
+              <div className="bg-white rounded-2xl p-8 text-center">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Check className="w-10 h-10 text-green-600" />
+                </div>
+                <h2 className="font-display text-3xl font-bold text-gray-800 mb-2">
+                  ¡Pedido Recibido!
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Tu pedido ha sido recibido y está siendo procesado
+                </p>
+                <div className="bg-gray-50 rounded-xl p-4 mb-6">
+                  <p className="text-sm text-gray-600">Número de orden</p>
+                  <p className="text-2xl font-bold text-primary-600">{orderNumber}</p>
+                </div>
+                <p className="text-sm text-gray-600 mb-8">
+                  Te notificaremos por WhatsApp cuando tu pedido esté listo.
+                </p>
+                <Link href="/" className="btn-primary inline-block">
+                  Volver a la Tienda
+                </Link>
+              </div>
+            )}
           </div>
+
+          {/* Order Summary Sidebar */}
+          {currentStep !== 'processing' && currentStep !== 'confirmation' && (
+            <div className="lg:col-span-1">
+              <div className="bg-white rounded-2xl p-6 sticky top-24">
+                <h3 className="font-semibold text-lg text-gray-800 mb-4">Resumen del Pedido</h3>
+                
+                <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
+                  {flowers.map(flower => (
+                    <div key={`flower-${flower.id}`} className="flex gap-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        {flower.image_url && <img src={flower.image_url} alt={flower.name} className="w-full h-full object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium line-clamp-1">{flower.name}</p>
+                        <p className="text-xs text-gray-500">Cant: {flower.quantity}</p>
+                      </div>
+                      <p className="text-sm font-semibold">S/ {((flower.final_price || flower.price) * flower.quantity).toFixed(2)}</p>
+                    </div>
+                  ))}
+                  {complements.map(complement => (
+                    <div key={`complement-${complement.id}`} className="flex gap-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        {complement.image_url && <img src={complement.image_url} alt={complement.name} className="w-full h-full object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium line-clamp-1">{complement.name}</p>
+                        <p className="text-xs text-gray-500">Cant: {complement.quantity}</p>
+                      </div>
+                      <p className="text-sm font-semibold">S/ {(complement.price * complement.quantity).toFixed(2)}</p>
+                    </div>
+                  ))}
+                  {breakfasts.map(breakfast => (
+                    <div key={`breakfast-${breakfast.id}`} className="flex gap-3">
+                      <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        {breakfast.image_url && <img src={breakfast.image_url} alt={breakfast.name} className="w-full h-full object-cover" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium line-clamp-1">{breakfast.name}</p>
+                        <p className="text-xs text-gray-500">Cant: {breakfast.quantity}</p>
+                      </div>
+                      <p className="text-sm font-semibold">S/ {(breakfast.price * breakfast.quantity).toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="border-t pt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Subtotal ({itemCount} items)</span>
+                    <span>S/ {subtotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Envío</span>
+                    <span>
+                      {deliveryType === 'pickup' 
+                        ? 'Gratis' 
+                        : shippingCost > 0 
+                          ? `S/ ${shippingCost.toFixed(2)}` 
+                          : 'Selecciona distrito'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t pt-4 mt-4">
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Total</span>
+                    <span className="text-primary-600">S/ {total.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+
+      {/* Payment Modal (Yape/Plin) - Modern Design */}
+      {showPaymentModal && paymentInfo && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[90vh] overflow-hidden shadow-2xl animate-modal-scale-in">
+            {/* Header with gradient */}
+            <div className={`relative px-6 pt-6 pb-8 ${
+              paymentMethod === 'yape' 
+                ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-fuchsia-500' 
+                : 'bg-gradient-to-br from-cyan-500 via-teal-500 to-emerald-500'
+            }`}>
+              {/* Close button */}
+              <button 
+                onClick={() => setShowPaymentModal(false)} 
+                className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+              
+              {/* Logo/Icon */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-white overflow-hidden shadow-lg">
+                  <Image 
+                    src={paymentMethod === 'yape' ? '/img/iconospagos/yape.png' : '/img/iconospagos/plin.png'} 
+                    alt={paymentMethod === 'yape' ? 'Yape' : 'Plin'}
+                    width={50}
+                    height={50}
+                    className="object-contain"
+                  />
+                </div>
+                <div>
+                  <h3 className="font-bold text-xl text-white">
+                    Pagar con {paymentMethod === 'yape' ? 'Yape' : 'Plin'}
+                  </h3>
+                  <p className="text-white/80 text-sm">Pago rápido y seguro</p>
+                </div>
+              </div>
+              
+              {/* Amount card floating */}
+              <div className="bg-white rounded-2xl p-4 shadow-xl">
+                <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total a pagar</p>
+                <p className={`text-3xl font-black ${
+                  paymentMethod === 'yape' ? 'text-purple-600' : 'text-teal-600'
+                }`}>
+                  S/ {total.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-6 space-y-5 max-h-[50vh] overflow-y-auto">
+              {/* QR Section */}
+              <div className="text-center">
+                <div className={`inline-block p-4 rounded-2xl ${
+                  paymentMethod === 'yape' ? 'bg-purple-50' : 'bg-teal-50'
+                }`}>
+                  <div className="w-52 h-52 bg-white rounded-xl flex items-center justify-center overflow-hidden border-2 border-gray-100 shadow-inner">
+                    {/* QR Real de Yape o Plin */}
+                    <Image 
+                      src={paymentMethod === 'yape' ? '/img/qr/yapeqr.PNG' : '/img/qr/pliqr.PNG'} 
+                      alt={`QR ${paymentMethod === 'yape' ? 'Yape' : 'Plin'}`}
+                      width={200}
+                      height={200}
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500 mt-3">
+                  Abre tu app de {paymentMethod === 'yape' ? 'Yape' : 'tu banco'} y escanea
+                </p>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-gray-200"></div>
+                <span className="text-xs text-gray-400 font-medium">O USA EL NÚMERO</span>
+                <div className="flex-1 h-px bg-gray-200"></div>
+              </div>
+
+              {/* Phone Number */}
+              <div className={`rounded-2xl p-4 ${
+                paymentMethod === 'yape' ? 'bg-purple-50' : 'bg-teal-50'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Número de teléfono</p>
+                    <p className={`text-2xl font-bold tracking-wide ${
+                      paymentMethod === 'yape' ? 'text-purple-700' : 'text-teal-700'
+                    }`}>
+                      {paymentMethod === 'yape' ? paymentInfo.yape.phone : paymentInfo.plin.phone}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      copyToClipboard(paymentMethod === 'yape' ? paymentInfo.yape.phone : paymentInfo.plin.phone);
+                    }}
+                    className={`p-3 rounded-xl transition-all active:scale-95 ${
+                      paymentMethod === 'yape' 
+                        ? 'bg-purple-100 hover:bg-purple-200 text-purple-600' 
+                        : 'bg-teal-100 hover:bg-teal-200 text-teal-600'
+                    }`}
+                  >
+                    <Copy className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-200/50">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    paymentMethod === 'yape' ? 'bg-purple-200' : 'bg-teal-200'
+                  }`}>
+                    <User className="w-4 h-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">A nombre de</p>
+                    <p className="font-medium text-gray-800">
+                      {paymentMethod === 'yape' ? paymentInfo.yape.name : paymentInfo.plin.name}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Instructions - Collapsible style */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer list-none p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                  <span className="font-medium text-gray-700 flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" />
+                    Ver instrucciones
+                  </span>
+                  <ChevronRight className="w-5 h-5 text-gray-400 transition-transform group-open:rotate-90" />
+                </summary>
+                <div className="mt-3 space-y-2">
+                  {(paymentMethod === 'yape' ? paymentInfo.yape.instructions : paymentInfo.plin.instructions).map((step, index) => (
+                    <div key={index} className="flex items-start gap-3 text-sm">
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold text-white ${
+                        paymentMethod === 'yape' ? 'bg-purple-500' : 'bg-teal-500'
+                      }`}>
+                        {index + 1}
+                      </span>
+                      <span className="text-gray-600 pt-0.5">{step.replace(/^\d+\.\s*/, '')}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+
+              {/* Upload Section */}
+              <div>
+                <p className="font-medium text-gray-800 mb-3 flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Sube tu comprobante
+                </p>
+                <label className="block cursor-pointer">
+                  <div className={`relative border-2 border-dashed rounded-2xl transition-all overflow-hidden ${
+                    paymentProofPreview 
+                      ? 'border-green-400 bg-green-50' 
+                      : paymentMethod === 'yape'
+                        ? 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'
+                        : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'
+                  }`}>
+                    {paymentProofPreview ? (
+                      <div className="p-4">
+                        <div className="relative">
+                          <img 
+                            src={paymentProofPreview} 
+                            alt="Comprobante" 
+                            className="max-h-40 mx-auto rounded-xl shadow-md" 
+                          />
+                          <div className="absolute -top-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-lg">
+                            <Check className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
+                        <p className="text-center text-sm text-green-600 font-medium mt-3">
+                          ¡Comprobante cargado correctamente!
+                        </p>
+                        <p className="text-center text-xs text-gray-400 mt-1">
+                          Toca para cambiar imagen
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center">
+                        <div className={`w-16 h-16 mx-auto mb-3 rounded-2xl flex items-center justify-center ${
+                          paymentMethod === 'yape' ? 'bg-purple-100' : 'bg-teal-100'
+                        }`}>
+                          <Upload className={`w-8 h-8 ${
+                            paymentMethod === 'yape' ? 'text-purple-500' : 'text-teal-500'
+                          }`} />
+                        </div>
+                        <p className="font-medium text-gray-700">Arrastra o haz clic</p>
+                        <p className="text-sm text-gray-400 mt-1">PNG, JPG hasta 5MB</p>
+                      </div>
+                    )}
+                  </div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handlePaymentProofSelect} 
+                    className="hidden" 
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-6">
+              <button
+                onClick={handleUploadProofAndComplete}
+                disabled={!paymentProofFile || uploadingProof}
+                className={`w-full py-4 rounded-2xl font-bold text-white text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg active:scale-[0.98] ${
+                  paymentMethod === 'yape'
+                    ? 'bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-700 hover:to-fuchsia-700 shadow-purple-500/30'
+                    : 'bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 shadow-teal-500/30'
+                }`}
+              >
+                {uploadingProof ? (
+                  <>
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    Verificando pago...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-6 h-6" />
+                    Confirmar pago realizado
+                  </>
+                )}
+              </button>
+              
+              <p className="text-center text-xs text-gray-400 mt-4">
+                🔒 Tu información está protegida y segura
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
   );
 }

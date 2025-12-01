@@ -1,5 +1,8 @@
 /**
- * Utilidad para manejar enlaces de WhatsApp con detección automática de dispositivo
+ * Utilidad para manejar enlaces de WhatsApp
+ * Usa wa.me que automáticamente detecta el dispositivo:
+ * - En PC: Abre WhatsApp Web
+ * - En móvil: Abre la app de WhatsApp
  */
 
 export interface WhatsAppOptions {
@@ -8,38 +11,23 @@ export interface WhatsAppOptions {
 }
 
 /**
- * Genera la URL correcta de WhatsApp según el dispositivo del usuario
- * @param options - Opciones para el enlace de WhatsApp
- * @returns URL de WhatsApp optimizada para el dispositivo
+ * Genera la URL de WhatsApp usando wa.me (funciona en todos los dispositivos)
  */
 export function getWhatsAppUrl({ phoneNumber, message = '' }: WhatsAppOptions): string {
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const encodedMessage = encodeURIComponent(message);
-  
-  if (isMobile) {
-    // En móvil: usar whatsapp:// para abrir la app directamente
-    return `whatsapp://send?phone=${phoneNumber}${message ? `&text=${encodedMessage}` : ''}`;
-  } else {
-    // En desktop: usar web.whatsapp.com
-    return `https://web.whatsapp.com/send?phone=${phoneNumber}${message ? `&text=${encodedMessage}` : ''}`;
-  }
+  return `https://wa.me/${phoneNumber}${message ? `?text=${encodedMessage}` : ''}`;
 }
 
 /**
  * Abre WhatsApp con los parámetros especificados
- * @param options - Opciones para el enlace de WhatsApp
  */
 export function openWhatsApp(options: WhatsAppOptions): void {
-  // console.log('Opening WhatsApp with options:', options); // Debug log
   const url = getWhatsAppUrl(options);
-  // console.log('Generated URL:', url); // Debug log
-  window.open(url, '_blank', 'noopener,noreferrer');
+  window.open(url, '_blank');
 }
 
 /**
  * Manejador de eventos para enlaces de WhatsApp
- * @param options - Opciones para el enlace de WhatsApp
- * @returns Función manejadora de eventos
  */
 export function createWhatsAppHandler(options: WhatsAppOptions) {
   return (e: React.MouseEvent) => {
@@ -59,8 +47,9 @@ export const WHATSAPP_NUMBERS = {
  * Mensajes predefinidos para WhatsApp
  */
 export const WHATSAPP_MESSAGES = {
-  GENERAL: '¡Hola! Me gustaría conocer más sobre sus arreglos florales 🌸',
-  STORE_VISIT: '¡Hola! Me gustaría hacer una reserva para visitar la tienda 🌸',
-  ORDER_INQUIRY: '¡Hola! Me gustaría hacer un pedido 🌸',
-  LOCATION_INFO: (address: string) => `Hola, quisiera información sobre su ubicación en ${address}`,
+  GENERAL: "¡Hola! Me gustaría conocer más sobre sus arreglos florales",
+  STORE_VISIT: "¡Hola! Me gustaría hacer una reserva para visitar la tienda",
+  ORDER_INQUIRY: "¡Hola! Me gustaría hacer un pedido",
+  PRODUCT_INQUIRY: (name: string, price: number) => 
+    `Hola! Me interesa el producto *${name}* por S/ ${price.toFixed(2)}. ¿Podrían darme más información?`,
 } as const;

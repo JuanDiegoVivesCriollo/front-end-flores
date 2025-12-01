@@ -1,0 +1,171 @@
+/* 
+ * Estilos personalizados para el formulario de pago iZiPay
+ * Basado en el ejemplo oficial de iZiPay 
+ */
+
+/* Campo wrapper */
+.kr-field-wrapper {
+    margin-top: 6px !important;
+    margin-left: 10px !important;
+}
+
+/* Contenedor principal del formulario con logo */
+#micuentawebstd_rest_wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 400px;
+    padding: 20px;
+}
+
+/* Contenedor con logo de Izipay */
+.izipay-form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0px 10px 25px rgba(92, 99, 105, .15);
+    border: 1px solid #e5e7eb;
+    padding: 25px;
+    padding-top: 20px;
+    width: 100%;
+    max-width: 380px;
+}
+
+/* Logo de Izipay */
+.izipay-form-container::before {
+    content: '';
+    display: block;
+    width: 140px;
+    height: 50px;
+    background-image: url("https://raw.githubusercontent.com/izipay-pe/Imagenes/main/logos_izipay/logo-izipay-sinFondo-250x102.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    margin-bottom: 10px;
+}
+
+/* Formulario embebido principal */
+.kr-embedded {
+    background-color: #fff !important;
+    border-radius: 8px !important;
+    margin-top: 0 !important;
+    padding: 15px !important;
+    width: 100% !important;
+    max-width: 320px !important;
+}
+
+/* Contenedor de seguridad y fecha de vencimiento */
+.content-security-expiry {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-around !important;
+}
+
+/* Campo de número de tarjeta */
+.kr-pan {
+    margin-top: 14px !important;
+    height: 45px !important;
+    border-radius: 6px !important;
+}
+
+/* Campo de fecha de vencimiento */
+.kr-expiry {
+    height: 45px !important;
+    border-radius: 6px !important;
+    max-width: 49% !important;
+}
+
+/* Campo de código de seguridad */
+.kr-security-code {
+    height: 45px !important;
+    border-radius: 6px !important;
+    max-width: 49% !important;
+}
+
+/* Campo de número de cuotas */
+.kr-installment-number {
+    border-radius: 6px !important;
+    height: 45px !important;
+}
+
+/* Campo de delay primera cuota */
+.kr-first-installment-delay {
+    border-radius: 6px !important;
+    height: 45px !important;
+}
+
+/* Botón de pago principal - Color rosa para Flores D'Jazmin */
+.kr-embedded .kr-payment-button {
+    color: #ffffff !important;
+    background-color: #ec4899 !important;
+    border-radius: 8px !important;
+    height: 52px !important;
+    margin-bottom: 0px !important;
+    margin-top: 10px !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+    transition: all 0.3s ease !important;
+    border: none !important;
+}
+
+/* Efecto hover del botón completo */
+.kr-embedded .kr-payment-button:hover {
+    background-color: #db2777 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(236, 72, 153, 0.35) !important;
+}
+
+/* Estilo adicional para campos de entrada */
+.kr-input {
+    border: 1px solid #d1d5db !important;
+    border-radius: 6px !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    transition: border-color 0.2s ease !important;
+}
+
+.kr-input:focus {
+    border-color: #ec4899 !important;
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1) !important;
+    outline: none !important;
+}
+
+/* Estilos para errores */
+.kr-field-error {
+    color: #ef4444 !important;
+    font-size: 12px !important;
+    margin-top: 4px !important;
+}
+
+/* Estilos para etiquetas */
+.kr-label {
+    color: #374151 !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    margin-bottom: 6px !important;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .kr-embedded {
+        max-width: 100% !important;
+        padding: 15px !important;
+    }
+    
+    .izipay-form-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 10px;
+    }
+}
+
+/* Animación de carga */
+.kr-form-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}

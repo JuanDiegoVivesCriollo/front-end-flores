@@ -2,512 +2,697 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState, useEffect } from "react";
-import { Menu, X, ShoppingCart, User, LogOut, Settings, UserCircle, Shield, ChevronDown } from "lucide-react";
-import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { 
+  Menu, 
+  X, 
+  ShoppingCart, 
+  Search, 
+  MapPin, 
+  Phone,
+  Heart,
+  ChevronDown,
+  Flame,
+  Sparkles,
+  User,
+  LogOut,
+  Settings,
+  Package,
+  ChevronRight,
+  LayoutDashboard,
+  Eye
+} from "lucide-react";
+import { usePathname } from 'next/navigation';
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import AnnouncementBar from "./AnnouncementBar";
-import { regularOccasions, condolenciasOccasions } from '@/config/occasions';
+import ProductDetailModal, { Product } from '@/components/ProductDetailModal';
+
+// Types
+interface FlowerType {
+  id: number;
+  name: string;
+  slug: string;
+  icon?: string;
+}
+
+interface Flower {
+  id: number;
+  name: string;
+  price: number;
+  original_price?: number;
+  discount_percentage?: number;
+  images?: string[];
+  category?: { name: string; slug: string };
+  flower_types?: FlowerType[];
+  color?: string;
+  description?: string;
+}
+
+// API y Storage URLs
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xn--floresdejazmnflorera-04bh.com/api/public/api/v1';
+const STORAGE_URL = process.env.NEXT_PUBLIC_STORAGE_URL || 'https://xn--floresdejazmnflorera-04bh.com/api/public/storage';
+
+const getImageUrl = (imagePath: string | undefined): string => {
+  if (!imagePath) return '/img/placeholder-flower.jpg';
+  if (imagePath.startsWith('http')) return imagePath;
+  const cleanPath = imagePath.replace(/^\/?(storage\/)?/, '');
+  return `${STORAGE_URL}/${cleanPath}`;
+};
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isOccasionsMenuOpen, setIsOccasionsMenuOpen] = useState(false);
-  const [isCondolenciasMenuOpen, setIsCondolenciasMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [flowers, setFlowers] = useState<Flower[]>([]);
+  const [flowersLoading, setFlowersLoading] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Flower | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const router = useRouter();
-  const { itemCount, toggleCart } = useCart();
-  const { user, isAuthenticated, logout, isAdmin } = useAuth();
+  const { getItemCount, toggleCart } = useCart();
+  const { user, isAuthenticated, isAdmin, openAuthModal, logout } = useAuth();
+  
+  const itemCount = getItemCount();
 
-  const handleLogout = async () => {
-    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-      await logout();
-      setIsUserMenuOpen(false);
-      router.push('/');
-    }
-  };
-
-  // Manejar click en ocasiones
-  const handleOccasionClick = (occasion: string) => {
-    console.log('=== INICIO handleOccasionClick ===');
-    console.log('Ocasión:', occasion);
-    console.log('Router disponible:', !!router);
-    
+  // Fetch flowers for search suggestions
+  const fetchFlowers = useCallback(async () => {
     try {
-      // Cerrar todos los menús inmediatamente
-      console.log('Cerrando menús...');
-      setIsOccasionsMenuOpen(false);
-      setIsMenuOpen(false);
-      setIsUserMenuOpen(false);
-      
-      // Forzar navegación usando router
-      const url = `/flores?ocasion=${occasion}`;
-      console.log('URL a navegar:', url);
-      console.log('URL actual:', window.location.href);
-      
-      // Usar router.push de manera directa
-      console.log('Ejecutando router.push...');
-      router.push(url);
-      
-      console.log('=== FIN handleOccasionClick ===');
-    } catch (error) {
-      console.error('Error en handleOccasionClick:', error);
+      setFlowersLoading(true);
+      const res = await fetch(`${API_BASE}/catalog/flowers`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        const flowersData = data.data || data || [];
+        setFlowers(flowersData);
+      }
+    } catch (err) {
+      console.error('Error fetching flowers:', err);
+    } finally {
+      setFlowersLoading(false);
     }
-  };
+  }, []);
 
-  // Función para manejar clicks en el menú sin cerrar inmediatamente
-  const handleMenuItemClick = (action: () => void) => {
-    // Ejecutar la acción inmediatamente
-    action();
-    // Cerrar el menú después de un pequeño retraso para mejorar UX
-    setTimeout(() => {
-      setIsUserMenuOpen(false);
-      setIsMenuOpen(false); // También cerrar menú móvil si está abierto
-    }, 150);
-  };
+  // Initial fetch
+  useEffect(() => {
+    fetchFlowers();
+  }, [fetchFlowers]);
 
-  const navItems = [
-    { id: '/tienda-fisica', label: 'Tienda Física' },
-    { id: '/ofertas', label: 'Ofertas' },
-    { id: '/flores', label: 'Flores' },
-    { id: 'ocasiones', label: 'Ocasiones', hasDropdown: true }, // Menú desplegable para ocasiones regulares
-    { id: 'condolencias', label: 'Condolencias', hasDropdown: true }, // Nuevo menú para condolencias
-    { id: '/complementos', label: 'Complementos' },
-    // { id: '/personalizar-ramo', label: 'Personalizar Ramo' }, // Temporalmente deshabilitado
-    { id: '/nosotros', label: 'Nosotros' },
-    { id: '/servicios', label: 'Servicios' },
-    { id: '/contacto', label: 'Contacto' },
-  ];
+  // Refetch when window gains focus (user returns from admin)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchFlowers();
+    };
 
-  // Cerrar dropdowns cuando se hace clic fuera
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchFlowers();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchFlowers]);
+
+  // Search suggestions - fuzzy matching with max 8 results
+  const searchSuggestions = useMemo(() => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return [];
+    
+    const query = searchQuery.toLowerCase().trim();
+    const words = query.split(/\s+/);
+    
+    const matches = flowers.filter(flower => {
+      const name = flower.name.toLowerCase();
+      const description = (flower.description || '').toLowerCase();
+      const category = flower.category?.name?.toLowerCase() || '';
+      const color = (flower.color || '').toLowerCase();
+      
+      return words.every(word => 
+        name.includes(word) ||
+        description.includes(word) ||
+        category.includes(word) ||
+        color.includes(word)
+      );
+    });
+    
+    matches.sort((a, b) => {
+      const aNameMatch = a.name.toLowerCase().includes(query);
+      const bNameMatch = b.name.toLowerCase().includes(query);
+      if (aNameMatch && !bNameMatch) return -1;
+      if (!aNameMatch && bNameMatch) return 1;
+      return 0;
+    });
+    
+    return matches.slice(0, 8);
+  }, [searchQuery, flowers]);
+
+  // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      
-      // Solo cerrar si NO es un click en un botón de ocasión
-      const isOccasionClick = target.closest('button[data-occasion]');
-      
-      // No cerrar si se hace click dentro del dropdown del usuario
-      if (isUserMenuOpen && !target.closest('[data-user-menu]')) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSuggestionClick = (flower: Flower) => {
+    setShowSuggestions(false);
+    setSearchQuery('');
+    setIsSearchOpen(false);
+    setSelectedProduct(flower);
+    setIsModalOpen(true);
+  };
+
+  const closeProductModal = () => {
+    setIsModalOpen(false);
+    setSelectedProduct(null);
+  };
+
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
-      }
-      
-      // No cerrar si se hace click dentro del dropdown de ocasiones O si es un click en ocasión
-      if (isOccasionsMenuOpen && !target.closest('[data-occasions-menu]') && !isOccasionClick) {
-        setIsOccasionsMenuOpen(false);
-      }
-      
-      // No cerrar si se hace click dentro del dropdown de condolencias O si es un click en ocasión
-      if (isCondolenciasMenuOpen && !target.closest('[data-condolencias-menu]') && !isOccasionClick) {
-        setIsCondolenciasMenuOpen(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isUserMenuOpen, isOccasionsMenuOpen, isCondolenciasMenuOpen]);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Todos los links de navegación (van a la izquierda)
+  const navItems = [
+    { href: '/ramos', label: 'Ramos' },
+    { href: '/ofertas', label: 'Ofertas' },
+    { href: '/desayunos', label: 'Desayunos' },
+    { href: '/ocasiones', label: 'Ocasiones' },
+    { href: '/contacto', label: 'Contacto' },
+  ];
+
+  const isActive = (path: string) => pathname === path;
 
   return (
-    <div>
-      {/* Barra de anuncios animada */}
-      <AnnouncementBar />
-      
-      <nav className="bg-white text-gray-800 px-4 py-2 shadow-lg sticky top-0 z-50 border-b border-gray-200">
-        <div className="max-w-7xl mx-auto flex items-center justify-between relative">
-        
-        {/* Logo */}
-        <div className="flex items-center">
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/img/logojazmin2.webp"
-              alt="Flores y Detalles Lima"
-              width={120}
-              height={60}
-              className="object-contain"
-            />
-          </Link>
+    <>
+      {/* Top Bar - Delivery Info */}
+      <div className="bg-primary-600 text-white py-2 text-center text-sm">
+        <div className="container-wide flex items-center justify-center gap-2">
+          <span className="animate-pulse">🚚</span>
+          <span className="font-medium">¡Envío GRATIS a Canto Rey!</span>
+          <span className="hidden sm:inline text-primary-200">|</span>
+          <span className="hidden sm:inline text-primary-100">Entregas en todo Lima y Callao</span>
         </div>
-
-        {/* Menu desktop */}
-        <div className="hidden md:flex gap-6 items-center">
-          {navItems.map((item) => (
-            item.hasDropdown ? (
-              // Menús desplegables para ocasiones y condolencias
-              <div key={item.id} className="relative" data-occasions-menu={item.id === 'ocasiones'} data-condolencias-menu={item.id === 'condolencias'}>
-                <button
-                  onClick={() => {
-                    if (item.id === 'ocasiones') {
-                      setIsOccasionsMenuOpen(!isOccasionsMenuOpen);
-                      setIsCondolenciasMenuOpen(false); // Cerrar el otro menú
-                    } else if (item.id === 'condolencias') {
-                      setIsCondolenciasMenuOpen(!isCondolenciasMenuOpen);
-                      setIsOccasionsMenuOpen(false); // Cerrar el otro menú
-                    }
-                  }}
-                  className={`flex items-center gap-1 hover:text-pink-bright transition-colors font-medium ${
-                    pathname.includes('/flores?ocasion=') || pathname.includes('/flores/condolencias') ? 'text-pink-bright font-semibold' : 'text-gray-700'
-                  }`}
-                >
-                  {item.label}
-                  <ChevronDown className={`w-4 h-4 transition-transform ${
-                    (item.id === 'ocasiones' && isOccasionsMenuOpen) || 
-                    (item.id === 'condolencias' && isCondolenciasMenuOpen) ? 'rotate-180' : ''
-                  }`} />
-                </button>
-
-                {/* Dropdown menu para ocasiones regulares */}
-                {item.id === 'ocasiones' && isOccasionsMenuOpen && (
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border py-6 px-8 z-50 min-w-max" data-occasions-menu>
-                    {/* Grid horizontal para desktop - 3 columnas (menos ocasiones) */}
-                    <div className="grid grid-cols-3 gap-6 max-w-3xl">
-                      {regularOccasions.map((occasion) => {
-                        const IconComponent = occasion.icon;
-                        return (
-                          <button
-                            key={occasion.value}
-                            data-occasion={occasion.value}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleOccasionClick(occasion.value);
-                            }}
-                            className="group flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-gradient-to-br hover:from-pink-50 hover:to-rose-50 transition-all duration-300 hover:scale-105 hover:shadow-lg border border-transparent hover:border-pink-200 min-w-[120px]"
-                          >
-                            <div className="w-14 h-14 bg-gradient-to-br from-pink-100 to-rose-100 rounded-full flex items-center justify-center group-hover:from-pink-200 group-hover:to-rose-200 transition-all duration-300 shadow-sm group-hover:shadow-md">
-                              <IconComponent className="w-7 h-7 text-pink-600 group-hover:text-pink-700 transition-colors" />
-                            </div>
-                            <span className="font-medium text-sm text-gray-700 group-hover:text-pink-700 transition-colors text-center leading-tight max-w-[100px]">
-                              {occasion.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    
-                    {/* Decorative arrow pointing up */}
-                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-gray-200 rotate-45"></div>
-                  </div>
-                )}
-
-                {/* Dropdown menu para condolencias */}
-                {item.id === 'condolencias' && isCondolenciasMenuOpen && (
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border py-6 px-8 z-50 min-w-max" data-condolencias-menu>
-                    {/* Grid horizontal para desktop - 2 columnas (4 tipos de condolencias) */}
-                    <div className="grid grid-cols-2 gap-6 max-w-2xl">
-                      {condolenciasOccasions.map((occasion) => {
-                        const IconComponent = occasion.icon;
-                        return (
-                          <button
-                            key={occasion.value}
-                            data-occasion={occasion.value}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleOccasionClick(occasion.value);
-                            }}
-                            className="group flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-gradient-to-br hover:from-gray-50 hover:to-slate-50 transition-all duration-300 hover:scale-105 hover:shadow-lg border border-transparent hover:border-gray-200 min-w-[140px]"
-                          >
-                            <div className="w-14 h-14 bg-gradient-to-br from-gray-100 to-slate-100 rounded-full flex items-center justify-center group-hover:from-gray-200 group-hover:to-slate-200 transition-all duration-300 shadow-sm group-hover:shadow-md">
-                              <IconComponent className="w-7 h-7 text-gray-600 group-hover:text-gray-700 transition-colors" />
-                            </div>
-                            <span className="font-medium text-sm text-gray-700 group-hover:text-gray-800 transition-colors text-center leading-tight max-w-[120px]">
-                              {occasion.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    
-                    {/* Decorative arrow pointing up */}
-                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t border-gray-200 rotate-45"></div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              // Enlaces normales
-              <Link
-                key={item.id}
-                href={item.id}
-                onClick={() => setIsMenuOpen(false)}
-                className={`hover:text-pink-bright transition-colors font-medium ${
-                  pathname === item.id ? 'text-pink-bright font-semibold' : 'text-gray-700'
-                }`}
-              >
-                {item.label}
-              </Link>
-            )
-          ))}
-        </div>
-
-        {/* Botones de acción */}
-        <div className="hidden md:flex items-center gap-3">
-          <button 
-            onClick={toggleCart}
-            className="relative p-2 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <ShoppingCart className="w-5 h-5" />
-            {itemCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-pink-bright text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                {itemCount > 9 ? '9+' : itemCount}
-              </span>
-            )}
-          </button>
-
-          {/* Menu de usuario autenticado */}
-          {isAuthenticated && user ? (
-            <div className="relative" data-user-menu>
-              <button
-                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-full transition-colors"
-              >
-                <UserCircle className="w-5 h-5" />
-                <span className="font-medium">{user.name}</span>
-                {isAdmin && <Shield className="w-4 h-4 text-purple-600" />}
-              </button>
-
-              {/* Dropdown menu */}
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border py-2 z-50" data-user-menu>
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="font-medium text-gray-900">{user.name}</p>
-                    <p className="text-sm text-gray-500">{user.email}</p>
-                    {isAdmin && (
-                      <span className="inline-flex items-center gap-1 text-xs text-purple-600 font-medium">
-                        <Shield className="w-3 h-3" />
-                        Administrador
-                      </span>
-                    )}
-                  </div>
-                  
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleMenuItemClick(() => router.push('/admin'))}
-                      className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors w-full text-left"
-                    >
-                      <Settings className="w-4 h-4" />
-                      Panel de Admin
-                    </button>
-                  )}
-                  
-                  <button
-                    onClick={() => handleMenuItemClick(() => router.push('/perfil'))}
-                    className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-50 transition-colors w-full text-left"
-                  >
-                    <User className="w-4 h-4" />
-                    Mi Perfil
-                  </button>
-                  
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 transition-colors w-full text-left"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Cerrar Sesión
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Botón de login para usuarios no autenticados */
-            <Link 
-              href="/login" 
-              className="bg-pink-bright hover:bg-pink-light text-white font-semibold px-4 py-2 rounded-full transition-colors flex items-center gap-2"
-            >
-              <User className="w-4 h-4" />
-              Iniciar sesión
-            </Link>
-          )}
-        </div>
-
-        {/* Menu mobile */}
-        <button
-          className="md:hidden p-2"
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-        >
-          {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
       </div>
 
-      {/* Menu mobile expandido */}
-      {isMenuOpen && (
-        <div className="md:hidden mt-4 pb-4 border-t border-gray-200">
-          <div className="flex flex-col gap-3 mt-4">
-            {navItems.map((item) => (
-              item.hasDropdown ? (
-                // Menú desplegable para móviles
-                <div key={item.id} className="flex flex-col">
-                  <button
-                    onClick={() => {
-                      if (item.id === 'ocasiones') {
-                        setIsOccasionsMenuOpen(!isOccasionsMenuOpen);
-                        setIsCondolenciasMenuOpen(false);
-                      } else if (item.id === 'condolencias') {
-                        setIsCondolenciasMenuOpen(!isCondolenciasMenuOpen);
-                        setIsOccasionsMenuOpen(false);
-                      }
-                    }}
-                    className={`flex items-center justify-between py-2 text-left font-medium transition-colors ${
-                      pathname.includes('/flores?ocasion=') || pathname.includes('/flores/condolencias') ? 'text-pink-bright font-semibold' : 'text-gray-700'
-                    }`}
-                  >
-                    <span>{item.label}</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${
-                      (item.id === 'ocasiones' && isOccasionsMenuOpen) || 
-                      (item.id === 'condolencias' && isCondolenciasMenuOpen) ? 'rotate-180' : ''
-                    }`} />
-                  </button>
-                  
-                  {/* Submenu móvil para ocasiones */}
-                  {item.id === 'ocasiones' && isOccasionsMenuOpen && (
-                    <div className="pl-4 mt-2 space-y-1 relative">
-                      <button
-                        onClick={() => setIsOccasionsMenuOpen(false)}
-                        className="absolute -top-2 -right-2 bg-gray-200 hover:bg-pink-100 text-gray-700 rounded-full p-1 w-7 h-7 flex items-center justify-center z-10"
-                        aria-label="Cerrar ocasiones"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      {regularOccasions.map((occasion) => {
-                        const IconComponent = occasion.icon;
-                        return (
-                          <button
-                            key={occasion.value}
-                            data-occasion={occasion.value}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleOccasionClick(occasion.value);
-                            }}
-                            className="flex items-center gap-3 py-2 text-gray-600 hover:text-pink-bright transition-colors w-full text-left"
-                          >
-                            <IconComponent className="w-4 h-4 text-pink-bright" />
-                            <span>{occasion.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Submenu móvil para condolencias */}
-                  {item.id === 'condolencias' && isCondolenciasMenuOpen && (
-                    <div className="pl-4 mt-2 space-y-1 relative">
-                      <button
-                        onClick={() => setIsCondolenciasMenuOpen(false)}
-                        className="absolute -top-2 -right-2 bg-gray-200 hover:bg-gray-100 text-gray-700 rounded-full p-1 w-7 h-7 flex items-center justify-center z-10"
-                        aria-label="Cerrar condolencias"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      {condolenciasOccasions.map((occasion) => {
-                        const IconComponent = occasion.icon;
-                        return (
-                          <button
-                            key={occasion.value}
-                            data-occasion={occasion.value}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleOccasionClick(occasion.value);
-                            }}
-                            className="flex items-center gap-3 py-2 text-gray-600 hover:text-gray-700 transition-colors w-full text-left"
-                          >
-                            <IconComponent className="w-4 h-4 text-gray-600" />
-                            <span>{occasion.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // Enlaces normales para móvil
+      {/* Main Navbar */}
+      <nav className={`sticky top-0 z-50 transition-all duration-300 ${
+        isScrolled 
+          ? 'bg-white/95 backdrop-blur-md shadow-lg' 
+          : 'bg-white shadow-soft'
+      }`}>
+        <div className="container-wide relative">
+          <div className="flex items-center justify-between h-24">
+            
+            {/* Left - Navigation Links */}
+            <div className="hidden lg:flex items-center gap-6">
+              {navItems.map((item) => (
                 <Link
-                  key={item.id}
-                  href={item.id}
-                  onClick={() => setIsMenuOpen(false)}
-                  className={`hover:text-pink-bright transition-colors py-2 text-left font-medium ${
-                    pathname === item.id ? 'text-pink-bright font-semibold' : 'text-gray-700'
+                  key={item.href}
+                  href={item.href}
+                  className={`relative py-2 text-sm font-medium transition-all duration-300 ${
+                    isActive(item.href)
+                      ? 'text-primary-600'
+                      : 'text-gray-700 hover:text-primary-600'
                   }`}
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  {isActive(item.href) && (
+                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-primary-500 rounded-full" />
+                  )}
                 </Link>
-              )
-            ))}
-            
-            <div className="flex items-center gap-3 pt-3 border-t border-gray-200">
-              <button 
-                onClick={() => {
-                  toggleCart();
-                  setIsMenuOpen(false);
-                }}
-                className="relative p-2 hover:bg-gray-100 rounded-full transition-colors min-h-[48px] min-w-[48px] touch-manipulation"
+              ))}
+            </div>
+
+            {/* Center - Logo (Absolute positioned) */}
+            <Link href="/" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 group z-10">
+              <div className="relative w-44 h-28 group-hover:scale-105 transition-transform">
+                <Image
+                  src="/img/logojazminwa.webp"
+                  alt="Flores D'Jazmin"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            </Link>
+
+            {/* Right - Actions */}
+            <div className="hidden lg:flex items-center gap-3">
+              {/* Search Button */}
+              <button
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="p-2.5 rounded-full hover:bg-gray-100 text-gray-600 hover:text-primary-600 transition-colors"
+                aria-label="Buscar"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+
+              {/* Cart Button */}
+              <button
+                onClick={toggleCart}
+                className="relative p-2.5 rounded-full hover:bg-gray-100 text-gray-600 hover:text-primary-600 transition-colors"
+                aria-label="Carrito de compras"
               >
                 <ShoppingCart className="w-5 h-5" />
                 {itemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-pink-bright text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-primary-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
                     {itemCount}
                   </span>
                 )}
               </button>
 
-              {/* Opciones móviles para usuario autenticado */}
-              {isAuthenticated && user ? (
-                <div className="flex flex-col gap-2 flex-1">
-                  <div className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-full">
-                    <UserCircle className="w-5 h-5" />
-                    <span className="font-medium">{user.name}</span>
-                    {isAdmin && <Shield className="w-4 h-4 text-purple-600" />}
-                  </div>
-                  
-                  <div className="flex flex-col gap-1">
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleMenuItemClick(() => router.push('/admin'))}
-                        className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50 rounded transition-colors text-sm w-full text-left"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Panel de Admin
-                      </button>
+              {/* User Button */}
+              <div className="relative" ref={userMenuRef}>
+                {isAuthenticated ? (
+                  <>
+                    <button
+                      onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                        {user?.name?.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 hidden xl:block max-w-[100px] truncate">
+                        {user?.name?.split(' ')[0]}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {/* User Dropdown Menu */}
+                    {isUserMenuOpen && (
+                      <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fadeIn">
+                        {/* Header con nombre */}
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <p className="text-xs text-primary-600 font-medium mb-1">
+                            {isAdmin ? '👑 Administrador' : '👤 Cliente'}
+                          </p>
+                          <p className="font-semibold text-gray-800 truncate">{user?.name}</p>
+                          <p className="text-sm text-gray-500 truncate">{user?.email}</p>
+                        </div>
+                        
+                        {/* Admin Panel Link */}
+                        {isAdmin && (
+                          <div className="py-2 border-b border-gray-100">
+                            <Link
+                              href="/admin"
+                              className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-primary-50 to-pink-50 text-primary-700 hover:from-primary-100 hover:to-pink-100 transition-colors mx-2 rounded-xl"
+                              onClick={() => setIsUserMenuOpen(false)}
+                            >
+                              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center">
+                                <LayoutDashboard className="w-5 h-5 text-white" />
+                              </div>
+                              <div>
+                                <span className="font-semibold block">Panel de Admin</span>
+                                <span className="text-xs text-primary-600">Gestionar tienda</span>
+                              </div>
+                              <ChevronRight className="w-5 h-5 ml-auto" />
+                            </Link>
+                          </div>
+                        )}
+                        
+                        <div className="py-2">
+                          <Link
+                            href="/mis-pedidos"
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            <Package className="w-5 h-5 text-gray-400" />
+                            <span>Mis Pedidos</span>
+                          </Link>
+                          <Link
+                            href="/favoritos"
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            <Heart className="w-5 h-5 text-gray-400" />
+                            <span>Favoritos</span>
+                          </Link>
+                          <Link
+                            href="/configuracion"
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            <Settings className="w-5 h-5 text-gray-400" />
+                            <span>Configuración</span>
+                          </Link>
+                        </div>
+
+                        <div className="border-t border-gray-100 pt-2">
+                          <button
+                            onClick={() => {
+                              logout();
+                              setIsUserMenuOpen(false);
+                            }}
+                            className="flex items-center gap-3 w-full px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <LogOut className="w-5 h-5" />
+                            <span>Cerrar Sesión</span>
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    
-                    <button
-                      onClick={() => handleMenuItemClick(() => router.push('/perfil'))}
-                      className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-50 rounded transition-colors text-sm w-full text-left"
-                    >
-                      <User className="w-4 h-4" />
-                      Mi Perfil
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setIsMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 rounded transition-colors text-left text-sm w-full"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Cerrar Sesión
-                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => openAuthModal('login')}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-full hover:bg-primary-600 transition-colors text-sm font-medium"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Ingresar</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile - Left side with menu button */}
+            <div className="lg:hidden flex items-center">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                aria-label={isMenuOpen ? 'Cerrar menú' : 'Abrir menú'}
+              >
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+
+            {/* Mobile - Right side actions */}
+            <div className="lg:hidden flex items-center gap-1">
+              <button
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                aria-label="Buscar"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+              
+              <button
+                onClick={toggleCart}
+                className="relative p-2 rounded-full hover:bg-gray-100 text-gray-600"
+                aria-label="Carrito"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {itemCount}
+                  </span>
+                )}
+              </button>
+              
+              <button
+                onClick={() => isAuthenticated ? setIsUserMenuOpen(!isUserMenuOpen) : openAuthModal('login')}
+                className="p-2 rounded-full hover:bg-gray-100 text-gray-600"
+              >
+                <User className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Search Bar - Expandable with Suggestions */}
+        <div className={`transition-all duration-300 border-t border-gray-100 ${
+          isSearchOpen ? 'opacity-100 visible' : 'opacity-0 invisible h-0 overflow-hidden'
+        }`}>
+          <div className="container-wide py-4">
+            <div className="relative max-w-2xl mx-auto" ref={searchRef}>
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 z-10" />
+                <input
+                  type="text"
+                  placeholder="Buscar flores, ramos, ocasiones..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSearchQuery(value);
+                    // Siempre mostrar sugerencias si hay 2+ caracteres
+                    if (value.length >= 2) {
+                      setShowSuggestions(true);
+                    } else {
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  onFocus={() => {
+                    if (searchQuery.length >= 2) setShowSuggestions(true);
+                  }}
+                  className="w-full pl-12 pr-12 py-3.5 rounded-2xl border-2 border-gray-200 bg-white focus:border-pink-400 focus:ring-4 focus:ring-pink-100 outline-none transition-all text-gray-800 placeholder:text-gray-400 font-medium"
+                  autoFocus={isSearchOpen}
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => {
+                      setSearchQuery('');
+                      setShowSuggestions(false);
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-1.5 hover:bg-gray-100 rounded-full transition-colors z-10"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                )}
+              </div>
+              
+              {/* Search Suggestions Dropdown - Con resultados */}
+              {showSuggestions && searchQuery.length >= 2 && searchSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-[100] max-h-[400px] overflow-y-auto">
+                  <div className="p-3 border-b border-gray-100 bg-gray-50">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                      {searchSuggestions.length} resultado{searchSuggestions.length !== 1 ? 's' : ''} encontrado{searchSuggestions.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {searchSuggestions.map((flower) => (
+                      <button
+                        key={flower.id}
+                        onClick={() => handleSuggestionClick(flower)}
+                        className="w-full flex items-center gap-4 p-3 hover:bg-pink-50 transition-colors text-left group"
+                      >
+                        {/* Product Image */}
+                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border border-gray-100 shadow-sm">
+                          <img
+                            src={getImageUrl(flower.images?.[0])}
+                            alt={flower.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          />
+                        </div>
+                        
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-gray-800 truncate group-hover:text-pink-600 transition-colors">
+                            {flower.name}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {/* Mostrar tipos de flores si existen */}
+                            {flower.flower_types && flower.flower_types.length > 0 ? (
+                              <>
+                                {flower.flower_types.slice(0, 2).map((type) => (
+                                  <span 
+                                    key={type.id}
+                                    className="text-xs font-medium text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full"
+                                  >
+                                    {type.icon && <span className="mr-1">{type.icon}</span>}
+                                    {type.name}
+                                  </span>
+                                ))}
+                                {flower.flower_types.length > 2 && (
+                                  <span className="text-xs text-gray-500">
+                                    +{flower.flower_types.length - 2}
+                                  </span>
+                                )}
+                              </>
+                            ) : flower.category ? (
+                              <span className="text-xs font-medium text-pink-600 bg-pink-100 px-2 py-0.5 rounded-full">
+                                {flower.category.name}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="text-sm font-bold text-gray-900 mt-1">
+                            S/ {Number(flower.price).toFixed(2)}
+                            {flower.original_price && Number(flower.original_price) > Number(flower.price) && (
+                              <span className="text-xs text-gray-400 line-through ml-2 font-normal">
+                                S/ {Number(flower.original_price).toFixed(2)}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                        
+                        {/* Arrow indicator */}
+                        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center">
+                            <Eye className="w-4 h-4 text-pink-600" />
+                          </div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ) : (
-                <Link 
-                  href="/login" 
-                  onClick={() => setIsMenuOpen(false)}
-                  className="bg-pink-bright hover:bg-pink-light text-white font-semibold px-4 py-2 rounded-full transition-colors flex items-center gap-2"
-                >
-                  <User className="w-4 h-4" />
-                  Iniciar sesión
-                </Link>
+              )}
+              
+              {/* Loading state */}
+              {showSuggestions && searchQuery.length >= 2 && flowersLoading && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-[100] p-6 text-center">
+                  <div className="w-8 h-8 border-3 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-gray-600 font-medium">Buscando...</p>
+                </div>
+              )}
+              
+              {/* No results message */}
+              {showSuggestions && searchQuery.length >= 2 && !flowersLoading && searchSuggestions.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden z-[100] p-6 text-center">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Search className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-gray-600 font-medium">No encontramos resultados</p>
+                  <p className="text-sm text-gray-400 mt-1">Intenta con otras palabras clave</p>
+                </div>
               )}
             </div>
           </div>
         </div>
-      )}
+
+        {/* Mobile Menu */}
+        <div className={`lg:hidden overflow-hidden transition-all duration-300 ${
+          isMenuOpen ? 'max-h-[500px] border-t border-gray-100' : 'max-h-0'
+        }`}>
+          <div className="container-wide py-4 space-y-2">
+            {navItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                  isActive(item.href)
+                    ? 'bg-primary-50 text-primary-600'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className="font-medium">{item.label}</span>
+              </Link>
+            ))}
+            
+            {/* Mobile Quick Actions */}
+            <div className="pt-4 border-t border-gray-100 space-y-3">
+              {/* User Section Mobile */}
+              {isAuthenticated ? (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-medium">
+                      {user?.name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800">{user?.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {isAdmin ? '👑 Administrador' : user?.email}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Admin Link Mobile */}
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center gap-3 w-full mb-3 py-3 px-4 bg-gradient-to-r from-primary-500 to-primary-600 rounded-xl text-white"
+                    >
+                      <LayoutDashboard className="w-5 h-5" />
+                      <div className="flex-1">
+                        <span className="font-semibold block">Panel de Admin</span>
+                        <span className="text-xs text-white/80">Gestionar tienda</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5" />
+                    </Link>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href="/mis-pedidos"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center justify-center gap-2 py-2 bg-white rounded-lg text-gray-700 text-sm"
+                    >
+                      <Package className="w-4 h-4" />
+                      Mis Pedidos
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center justify-center gap-2 py-2 bg-red-50 rounded-lg text-red-600 text-sm"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Salir
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    openAuthModal('login');
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium"
+                >
+                  <User className="w-5 h-5" />
+                  Iniciar Sesión
+                </button>
+              )}
+
+              <div className="flex gap-3">
+                <Link
+                  href="/favoritos"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-gray-50 text-gray-700"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <Heart className="w-5 h-5" />
+                  <span>Favoritos</span>
+                </Link>
+                <a
+                  href="https://wa.me/51919642610"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-green-50 text-green-600"
+                >
+                  <Phone className="w-5 h-5" />
+                  <span>WhatsApp</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
       </nav>
-    </div>
+
+      {/* Product Modal from Search - Reutilizando el mismo modal del catálogo */}
+      <ProductDetailModal
+        isOpen={isModalOpen}
+        onClose={closeProductModal}
+        product={selectedProduct as Product | null}
+        allProducts={flowers as Product[]}
+      />
+    </>
   );
 }

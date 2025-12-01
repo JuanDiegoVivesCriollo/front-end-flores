@@ -1,399 +1,713 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --pink-light: 248 154 206; /* #F89ACE - Rosa (para fondos de imágenes) */
-    --pink-medium: 254 92 168; /* #FE5CA8 - Chicle (principal) */
-    --pink-dark: 227 24 132; /* #E31884 - Magenta (acentos) */
-    --pink-bright: 252 70 171; /* #FC46AB - Fucsia (botones destacados) */
-    --green-accent: 86 118 63; /* #56763F - Verde hojas (acentos naturales) */
-    --rose-light: 253 242 248; /* Fondo muy claro derivado del rosa */
-    --rose-medium: 251 207 232; /* Fondo medio derivado del rosa */
+/* ==========================================
+   Flores D'Jazmin - Global Styles
+   ========================================== */
+
+/* Google Fonts Import */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Primary Colors - Rosa Suave */
+  --color-primary: #ec4899;
+  --color-primary-light: #f9a8d4;
+  --color-primary-dark: #db2777;
+  
+  /* Neutral Colors */
+  --color-background: #fffbfc;
+  --color-text: #1f2937;
+  --color-text-light: #6b7280;
+  
+  /* Accent Colors */
+  --color-cream: #fff8f0;
+  --color-gold: #d4af37;
+  --color-sage: #9caf88;
+  
+  /* Shadows */
+  --shadow-rose: 0 4px 20px rgba(236, 72, 153, 0.15);
+  --shadow-soft: 0 2px 15px rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+/* ==========================================
+   Typography
+   ========================================== */
+
+.font-display {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-script {
+  font-family: 'Dancing Script', cursive;
+}
+
+/* ==========================================
+   Custom Scrollbar
+   ========================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fdf2f8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #f9a8d4 0%, #ec4899 100%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #ec4899 0%, #db2777 100%);
+}
+
+/* ==========================================
+   Button Styles
+   ========================================== */
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 
+           bg-gradient-to-r from-primary-500 to-primary-600 
+           text-white font-semibold rounded-full
+           shadow-rose hover:shadow-rose-lg
+           transform hover:-translate-y-0.5
+           transition-all duration-300 ease-out;
   }
 
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    line-height: 1.6;
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3
+           bg-white text-primary-600 font-semibold rounded-full
+           border-2 border-primary-300
+           hover:bg-primary-50 hover:border-primary-400
+           transition-all duration-300;
   }
 
-  html {
-    overflow-x: hidden;
-  }
-
-  body {
-    overflow-x: hidden;
+  .btn-outline {
+    @apply inline-flex items-center justify-center px-6 py-3
+           bg-transparent text-primary-600 font-medium rounded-full
+           border border-primary-300
+           hover:bg-primary-50
+           transition-all duration-300;
   }
 }
+
+/* ==========================================
+   Card Styles
+   ========================================== */
+
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-soft overflow-hidden
+           transition-all duration-300 ease-out
+           hover:shadow-rose hover:-translate-y-1;
+  }
+
+  .card-product {
+    @apply card cursor-pointer group;
+  }
+}
+
+/* ==========================================
+   Form Inputs
+   ========================================== */
+
+@layer components {
+  .input {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200
+           focus:border-primary-400 focus:ring-2 focus:ring-primary-100
+           outline-none transition-all duration-200
+           placeholder:text-gray-400;
+  }
+
+  .input-label {
+    @apply block text-sm font-medium text-gray-700 mb-2;
+  }
+}
+
+/* ==========================================
+   Hero Section Styles
+   ========================================== */
+
+.hero-gradient {
+  background: linear-gradient(
+    135deg,
+    rgba(253, 242, 248, 0.95) 0%,
+    rgba(255, 255, 255, 0.9) 50%,
+    rgba(252, 231, 243, 0.95) 100%
+  );
+}
+
+.hero-text-gradient {
+  background: linear-gradient(135deg, #ec4899 0%, #db2777 50%, #9d174d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ==========================================
+   Flower Card Hover Effects
+   ========================================== */
+
+.flower-card-image {
+  @apply relative overflow-hidden;
+}
+
+.flower-card-image img {
+  @apply transition-transform duration-500 ease-out;
+}
+
+.flower-card:hover .flower-card-image img {
+  @apply scale-110;
+}
+
+.flower-card-overlay {
+  @apply absolute inset-0 bg-gradient-to-t from-black/20 to-transparent
+         opacity-0 group-hover:opacity-100 transition-opacity duration-300;
+}
+
+/* ==========================================
+   Price Tag Styles
+   ========================================== */
+
+.price-tag {
+  @apply inline-flex items-center gap-2;
+}
+
+.price-current {
+  @apply text-xl font-bold text-primary-600;
+}
+
+.price-original {
+  @apply text-sm text-gray-400 line-through;
+}
+
+.discount-badge {
+  @apply inline-flex items-center px-2 py-1 
+         bg-red-500 text-white text-xs font-bold rounded-full;
+}
+
+/* ==========================================
+   Rating Stars
+   ========================================== */
+
+.star-rating {
+  @apply inline-flex items-center gap-0.5;
+}
+
+.star-filled {
+  @apply text-yellow-400;
+}
+
+.star-empty {
+  @apply text-gray-300;
+}
+
+/* ==========================================
+   Badge Styles
+   ========================================== */
+
+.badge {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold;
+}
+
+.badge-sale {
+  @apply bg-red-100 text-red-600;
+}
+
+.badge-new {
+  @apply bg-green-100 text-green-600;
+}
+
+.badge-featured {
+  @apply bg-primary-100 text-primary-600;
+}
+
+/* ==========================================
+   Filter Chip Styles
+   ========================================== */
+
+.filter-chip {
+  @apply inline-flex items-center px-4 py-2 rounded-full
+         bg-white border border-gray-200
+         text-sm font-medium text-gray-700
+         cursor-pointer transition-all duration-200
+         hover:border-primary-300 hover:text-primary-600;
+}
+
+.filter-chip.active {
+  @apply bg-primary-50 border-primary-400 text-primary-600;
+}
+
+/* ==========================================
+   Price Range Slider
+   ========================================== */
+
+.price-slider {
+  @apply w-full h-2 bg-gray-200 rounded-full appearance-none cursor-pointer;
+}
+
+.price-slider::-webkit-slider-thumb {
+  @apply appearance-none w-5 h-5 bg-primary-500 rounded-full
+         shadow-md cursor-pointer transition-transform duration-200;
+}
+
+.price-slider::-webkit-slider-thumb:hover {
+  @apply transform scale-110;
+}
+
+/* ==========================================
+   Loading Animations
+   ========================================== */
+
+.skeleton {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+.spinner {
+  @apply animate-spin rounded-full border-4 border-primary-200 border-t-primary-500;
+}
+
+/* ==========================================
+   Cart Sidebar
+   ========================================== */
+
+.cart-sidebar {
+  @apply fixed right-0 top-0 h-full w-full md:w-96 
+         bg-white shadow-2xl z-50
+         transform transition-transform duration-300 ease-out;
+}
+
+.cart-sidebar.open {
+  @apply translate-x-0;
+}
+
+.cart-sidebar.closed {
+  @apply translate-x-full;
+}
+
+/* ==========================================
+   Modal Styles
+   ========================================== */
+
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 z-50
+         flex items-center justify-center p-4;
+}
+
+.modal-content {
+  @apply bg-white rounded-2xl shadow-2xl max-w-lg w-full
+         max-h-[90vh] overflow-y-auto
+         animate-scale-in;
+}
+
+/* ==========================================
+   Toast Notifications
+   ========================================== */
+
+.toast {
+  @apply fixed bottom-4 right-4 z-50
+         px-6 py-4 rounded-xl shadow-lg
+         animate-slide-up;
+}
+
+.toast-success {
+  @apply bg-green-500 text-white;
+}
+
+.toast-error {
+  @apply bg-red-500 text-white;
+}
+
+.toast-info {
+  @apply bg-primary-500 text-white;
+}
+
+/* ==========================================
+   Responsive Utilities
+   ========================================== */
 
 @layer utilities {
-  /* Animaciones personalizadas */
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
-  }
-
-  @keyframes heartbeat {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-  }
-
-  .animate-float {
-    animation: float 3s ease-in-out infinite;
-  }
-
-  .animate-heart-beat {
-    animation: heartbeat 1.5s infinite;
-  }
-
-  .animate-bounce-slow {
-    animation: bounce 2s infinite;
-  }
-
-  /* Animación con delay para efectos escalonados */
-  .animation-delay-75 {
-    animation-delay: 75ms;
-  }
-
-  .animation-delay-150 {
-    animation-delay: 150ms;
-  }
-
-  /* Ocultar scrollbar pero mantener funcionalidad */
-  .scrollbar-hide {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+  .text-balance {
+    text-wrap: balance;
   }
   
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;  /* Chrome, Safari and Opera */
+  .container-tight {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 
-  /* Estilos para range slider moderno */
-  .slider {
-    -webkit-appearance: none;
-    background: transparent;
-    cursor: pointer;
-  }
-
-  .slider::-webkit-slider-track {
-    background: #e5e7eb;
-    height: 8px;
-    border-radius: 4px;
-  }
-
-  .slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    background: linear-gradient(135deg, #FC879C, #F06292);
-    height: 20px;
-    width: 20px;
-    border-radius: 50%;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    transition: all 0.2s ease;
-  }
-
-  .slider::-webkit-slider-thumb:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .slider::-moz-range-track {
-    background: #e5e7eb;
-    height: 8px;
-    border-radius: 4px;
-    border: none;
-  }
-
-  .slider::-moz-range-thumb {
-    background: linear-gradient(135deg, #FC879C, #F06292);
-    height: 20px;
-    width: 20px;
-    border-radius: 50%;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  .animate-pulse-slow {
-    animation: pulse 3s infinite;
-  }
-
-  /* Efectos para carrusel con slides apagados */
-  .carousel-slide-inactive {
-    filter: blur(1px) brightness(0.4) saturate(0.7);
-    transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .carousel-slide-active {
-    filter: blur(0px) brightness(1) saturate(1);
-    transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  /* Animación de desvanecimiento gradual */
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0.15; }
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0.15; }
-    to { opacity: 1; }
-  }
-
-  .animate-fade-out {
-    animation: fadeOut 0.7s ease-out forwards;
-  }
-
-  .animate-fade-in {
-    animation: fadeIn 0.7s ease-out forwards;
-  }
-
-  /* Efecto de cristal para slides inactivos */
-  .glass-effect {
-    backdrop-filter: blur(4px) brightness(0.8) saturate(0.6);
-    -webkit-backdrop-filter: blur(4px) brightness(0.8) saturate(0.6);
+  .container-wide {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 }
 
-/* Estilos para el slider de rango de precio */
-.slider {
-  -webkit-appearance: none;
-  appearance: none;
-  background: linear-gradient(to right, #fc879c 0%, #fc879c var(--value), #e5e7eb var(--value), #e5e7eb 100%);
-  height: 8px;
-  border-radius: 4px;
-  outline: none;
-  cursor: pointer;
+/* ==========================================
+   Hide scrollbar but keep functionality
+   ========================================== */
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-.slider::-webkit-slider-track {
-  background: transparent;
-  height: 8px;
-  border-radius: 4px;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-.slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  background: #fc879c;
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s ease;
-  border: 2px solid white;
-}
+/* ==========================================
+   SEO Hidden Content (visible to crawlers)
+   ========================================== */
 
-.slider::-webkit-slider-thumb:hover {
-  background: #f06292;
-  transform: scale(1.1);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-}
-
-.slider::-moz-range-track {
-  background: #e5e7eb;
-  height: 8px;
-  border-radius: 4px;
-  border: none;
-}
-
-.slider::-moz-range-progress {
-  background: #fc879c;
-  height: 8px;
-  border-radius: 4px;
-}
-
-.slider::-moz-range-thumb {
-  background: #fc879c;
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s ease;
-}
-
-.slider::-moz-range-thumb:hover {
-  background: #f06292;
-  transform: scale(1.1);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3);
-}
-
-/* Estilos para el customizador de ramos */
-.bouquet-customizer {
-  --gradient-size: 200px;
-  background: linear-gradient(
-    45deg,
-    rgba(255, 182, 193, 0.1),
-    rgba(255, 192, 203, 0.2),
-    rgba(255, 218, 224, 0.1)
-  );
-  background-size: var(--gradient-size) var(--gradient-size);
-  animation: gradient-shift 15s ease infinite;
-}
-
-@keyframes gradient-shift {
-  0%, 100% {
-    background-position: 0% 0%;
-  }
-  25% {
-    background-position: 100% 0%;
-  }
-  50% {
-    background-position: 100% 100%;
-  }
-  75% {
-    background-position: 0% 100%;
-  }
-}
-
-.flower-card {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: center;
-}
-
-.flower-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
-
-.bouquet-step {
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.bouquet-step.active {
-  transform: scale(1.02);
-  box-shadow: 0 8px 32px rgba(255, 105, 180, 0.3);
-}
-
-/* Efectos de hover mejorados */
-.interactive-element {
-  position: relative;
-  overflow: hidden;
-}
-
-.interactive-element::before {
-  content: '';
+.sr-only {
   position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-  transition: left 0.5s;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 
-.interactive-element:hover::before {
-  left: 100%;
+/* ==========================================
+   Animations
+   ========================================== */
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-/* Botón personalizar ramo especial */
-.customizer-button {
-  position: relative;
-  background: linear-gradient(45deg, #ff1493, #ff69b4, #ff1493);
-  background-size: 200% 200%;
-  animation: gradient-flow 3s ease infinite;
-  box-shadow: 0 4px 15px rgba(255, 20, 147, 0.4);
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.customizer-button:hover {
-  box-shadow: 0 6px 20px rgba(255, 20, 147, 0.6);
-  transform: translateY(-2px);
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-@keyframes gradient-flow {
-  0% {
-    background-position: 0% 50%;
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
   }
   50% {
-    background-position: 100% 50%;
+    opacity: 0.7;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out forwards;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ==========================================
+   Loading Animations
+   ========================================== */
+
+@keyframes petal-breathe {
+  0%, 100% {
+    opacity: 0.7;
+    transform: translateY(-14px) scale(0.6, 1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-16px) scale(0.7, 1.1);
+  }
+}
+
+@keyframes sparkle {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-10px) rotate(5deg);
+    opacity: 1;
+  }
+}
+
+@keyframes gentle-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes modal-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
   }
   100% {
-    background-position: 0% 50%;
+    background-position: 200% 0;
   }
 }
 
-/* Badge nuevo pulsante */
-.new-badge {
-  animation: pulse-glow 2s infinite;
-  z-index: 20;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+.animate-float {
+  animation: float 4s ease-in-out infinite;
 }
 
-@keyframes pulse-glow {
-  0%, 100% {
-    transform: rotate(12deg) scale(1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(255, 193, 7, 0.6);
+.animate-gentle-spin {
+  animation: gentle-spin 8s linear infinite;
+}
+
+.animate-modal-scale-in {
+  animation: modal-scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Hide scrollbar for horizontal scroll */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==========================================
+   Modal & Chat Animations
+   ========================================== */
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================
+   Slide In Right Animation (Shopping Cart)
+   ========================================== */
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================
+   Cart Notification Animations
+   ========================================== */
+
+@keyframes notification-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
   }
   50% {
-    transform: rotate(12deg) scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 4px rgba(255, 193, 7, 0);
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
-/* Versión móvil sin rotación */
-@media (max-width: 768px) {
-  @keyframes pulse-glow {
-    0%, 100% {
-      transform: scale(1);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(255, 193, 7, 0.6);
-    }
-    50% {
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 0 4px rgba(255, 193, 7, 0);
-    }
+@keyframes circle-draw {
+  0% {
+    stroke-dashoffset: 283;
+  }
+  100% {
+    stroke-dashoffset: 0;
   }
 }
 
-/* Estilos para los filtros modernos */
-.slider {
-  background: linear-gradient(to right, #fc46ab 0%, #fc46ab var(--progress, 50%), #e5e7eb var(--progress, 50%), #e5e7eb 100%);
+@keyframes circle-fill {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fc46ab;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  transition: box-shadow 0.2s ease;
+@keyframes check-draw {
+  0% {
+    stroke-dashoffset: 60;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
 }
 
-.slider::-webkit-slider-thumb:hover {
-  box-shadow: 0 4px 8px rgba(252, 70, 171, 0.3);
+@keyframes text-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fc46ab;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.animate-notification-pop {
+  animation: notification-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-.slider::-moz-range-thumb:hover {
-  box-shadow: 0 4px 8px rgba(252, 70, 171, 0.3);
+.animate-circle-draw {
+  animation: circle-draw 0.5s ease-out 0.1s forwards;
 }
 
-/* Animación para el corazón */
-@keyframes heart-beat {
-  0% { transform: scale(1); }
-  25% { transform: scale(1.1); }
-  50% { transform: scale(1); }
-  75% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+.animate-circle-fill {
+  transform-origin: center;
+  animation: circle-fill 0.4s ease-out 0.3s forwards;
+  opacity: 0;
 }
 
-.animate-heart-beat {
-  animation: heart-beat 0.8s ease-in-out;
+.animate-check-draw {
+  animation: check-draw 0.3s ease-out 0.5s forwards;
+}
+
+.animate-text-appear {
+  animation: text-appear 0.3s ease-out 0.4s forwards;
+  opacity: 0;
+}
+
+.animate-text-appear-delay {
+  animation: text-appear 0.3s ease-out 0.5s forwards;
+  opacity: 0;
+}
+
+/* ==========================================
+   Safe Area for Mobile (iPhone notch, etc.)
+   ========================================== */
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
 }

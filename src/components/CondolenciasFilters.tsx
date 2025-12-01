@@ -10,37 +10,41 @@ interface CondolenciasFiltersProps {
 const condolenciasOccasions = [
   {
     label: 'Todas las condolencias',
-    value: '',
+    value: 'all-condolencias',
     icon: Ribbon,
-    description: 'Ver todos los arreglos',
+    description: 'Ver todos los arreglos'
   },
   {
     label: 'Lágrimas de Piso',
-    value: 'Lágrimas de Piso',
+    value: 'lagrimas-piso',
     icon: Ribbon,
-    description: 'Arreglos elegantes en el suelo',
+    description: 'Arreglos elegantes en el suelo'
   },
   {
     label: 'Mantos Especiales',
-    value: 'Mantos Especiales',
+    value: 'mantos-especiales',
     icon: Ribbon,
-    description: 'Coberturas florales únicas',
+    description: 'Coberturas florales únicas'
   },
   {
     label: 'Coronas',
-    value: 'Coronas',
+    value: 'coronas',
     icon: Crown,
-    description: 'Coronas tradicionales',
+    description: 'Coronas tradicionales'
   },
   {
     label: 'Trípodes',
-    value: 'Trípodes',
+    value: 'tripodes',
     icon: Ribbon,
-    description: 'Arreglos en trípodes elegantes',
+    description: 'Arreglos en trípodes elegantes'
   }
 ];
 
 export default function CondolenciasFilters({ onOccasionSelect, selectedOccasion }: CondolenciasFiltersProps) {
+  const handleOccasionClick = (occasion: typeof condolenciasOccasions[0]) => {
+    onOccasionSelect(occasion.value);
+  };
+
   return (
     <div className="bg-white border-b border-gray-200 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -53,18 +57,25 @@ export default function CondolenciasFilters({ onOccasionSelect, selectedOccasion
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+        <div 
+          className="flex overflow-x-auto gap-6 mb-6 pb-4" 
+          style={{ 
+            scrollbarWidth: 'none', 
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
           {condolenciasOccasions.map((occasion) => {
             const IconComponent = occasion.icon;
             const isSelected = selectedOccasion === occasion.value;
-            const isAllOccasions = occasion.value === '';
+            const isAllOccasions = occasion.value === 'all-condolencias';
             
             return (
               <button
                 key={occasion.label}
-                onClick={() => onOccasionSelect(occasion.value)}
+                onClick={() => handleOccasionClick(occasion)}
                 className={`
-                  group relative overflow-hidden rounded-xl p-6 text-center transition-all duration-300 transform hover:scale-105 hover:shadow-xl
+                  flex-shrink-0 w-56 group relative overflow-hidden rounded-xl p-6 text-center transition-all duration-300 transform hover:scale-105 hover:shadow-xl
                   ${isSelected 
                     ? isAllOccasions
                       ? 'bg-gradient-to-br from-purple-600 to-purple-700 text-white shadow-lg ring-2 ring-purple-500'
@@ -77,11 +88,11 @@ export default function CondolenciasFilters({ onOccasionSelect, selectedOccasion
                 <div className="absolute inset-0 opacity-5">
                   <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
                     <defs>
-                      <pattern id="floral-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+                      <pattern id={`floral-pattern-${occasion.value}`} x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
                         <circle cx="10" cy="10" r="2" fill="currentColor" opacity="0.1"/>
                       </pattern>
                     </defs>
-                    <rect width="100" height="100" fill="url(#floral-pattern)"/>
+                    <rect width="100" height="100" fill={`url(#floral-pattern-${occasion.value})`}/>
                   </svg>
                 </div>
 

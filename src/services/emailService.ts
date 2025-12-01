@@ -8,8 +8,9 @@ const EMAILJS_CONFIG = {
   publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || '',
 };
 
-// Email del vendedor
-const VENDOR_EMAIL = 'floresydetalleslima1@gmail.com';
+// Email del vendedor (Flores D'Jazmin)
+const VENDOR_EMAIL = process.env.NEXT_PUBLIC_VENDOR_EMAIL || 'floresdjazmin@gmail.com';
+const VENDOR_NAME = "Flores D'Jazmin";
 
 // Función para formatear la fecha de entrega
 const formatDeliveryDate = (dateString: string): string => {
@@ -22,7 +23,7 @@ const formatDeliveryDate = (dateString: string): string => {
       day: 'numeric'
     });
   } catch {
-    return dateString; // Devolver la fecha original si hay error
+    return dateString;
   }
 };
 
@@ -48,12 +49,20 @@ export interface OrderEmailData {
     price: number | string;
   }>;
   total: number;
+  paymentMethod?: string;
   paymentDate: string;
   deliveryAddress?: string;
   deliveryDate?: string;
   deliveryTimeSlot?: string;
   specialInstructions?: string;
   shippingType?: string;
+  district?: string;
+  // Datos del destinatario
+  recipientName?: string;
+  recipientPhone?: string;
+  recipientRelationship?: string;
+  deliveryNotes?: string;
+  googleMapsLink?: string;
 }
 
 // Función para enviar correo al cliente
@@ -66,22 +75,22 @@ export const sendCustomerConfirmationEmail = async (orderData: OrderEmailData): 
       return false;
     }
 
-    // Debug: Ver qué valor llega de shipping_type
-    const emailData: OrderEmailData = {    const templateParams = {
+    const templateParams = {
       to_email: orderData.customerEmail,
       customer_name: orderData.customerName || 'Cliente',
       customer_email: orderData.customerEmail,
       customer_phone: orderData.customerPhone || 'No proporcionado',
       customer_dni: orderData.customerDNI || 'No proporcionado',
       customer_address: orderData.customerAddress || 'No especificada',
-      customer_city: orderData.customerCity || 'No especificada',
+      customer_city: orderData.customerCity || 'Lima',
       order_id: orderData.orderId,
+      payment_method: orderData.paymentMethod || 'No especificado',
       payment_date: orderData.paymentDate,
       total_amount: orderData.total.toFixed(2),
       delivery_address: orderData.deliveryAddress || 'No especificada',
       delivery_date: orderData.deliveryDate || 'Por confirmar',
+      delivery_district: orderData.district || 'Lima',
       special_instructions: orderData.specialInstructions || 'Ninguna',
-      // Para el cliente, mostrar las notas de forma más amigable
       customer_notes: orderData.specialInstructions && orderData.specialInstructions.trim() !== '' 
         ? orderData.specialInstructions.trim() 
         : 'Ninguna',
@@ -91,15 +100,27 @@ export const sendCustomerConfirmationEmail = async (orderData: OrderEmailData): 
       date_value: orderData.deliveryDate || 'Por confirmar',
       time_label: orderData.shippingType === 'pickup' ? 'Horario de recojo' : 'Horario de entrega',
       time_value: orderData.deliveryTimeSlot || 'Por confirmar',
-      // Fecha y hora combinadas para mejor visualización
+      // Fecha y hora combinadas
       delivery_datetime: orderData.deliveryDate && orderData.deliveryTimeSlot 
         ? `${formatDeliveryDate(orderData.deliveryDate)} - ${orderData.deliveryTimeSlot}` 
         : 'Por confirmar',
       address_label: orderData.shippingType === 'pickup' ? 'Dirección de la tienda' : 'Dirección de entrega',
-      address_value: orderData.shippingType === 'pickup' ? 'Flores y Detalles Lima - Jr. Ejemplo 123, Lima' : (orderData.deliveryAddress || 'No especificada'),
+      address_value: orderData.shippingType === 'pickup' 
+        ? `${VENDOR_NAME} - Lima, Perú` 
+        : (orderData.deliveryAddress || 'No especificada'),
       items_list: orderData.items.map(item => 
         `• ${item.name} - Cantidad: ${item.quantity} - Precio: S/ ${(parseFloat(String(item.price)) || 0).toFixed(2)}`
       ).join('\n'),
+      // Datos del destinatario
+      recipient_name: orderData.recipientName || '',
+      recipient_phone: orderData.recipientPhone || '',
+      recipient_relationship: orderData.recipientRelationship || '',
+      delivery_notes: orderData.deliveryNotes || '',
+      google_maps_link: orderData.googleMapsLink || '',
+      has_recipient_info: !!(orderData.recipientName || orderData.recipientPhone || orderData.recipientRelationship),
+      recipient_info_text: orderData.recipientName 
+        ? `📧 DESTINATARIO: ${orderData.recipientName}${orderData.recipientPhone ? ` (${orderData.recipientPhone})` : ''}${orderData.recipientRelationship ? ` - ${orderData.recipientRelationship}` : ''}` 
+        : '',
     };
 
     const result = await emailjs.send(
@@ -126,28 +147,27 @@ export const sendVendorNotificationEmail = async (orderData: OrderEmailData): Pr
       return false;
     }
 
-    // Debug: Ver qué valor llega de shipping_type
-    
-    // Enviar email al vendedor    const templateParams = {
+    const templateParams = {
       to_email: VENDOR_EMAIL,
-      vendor_name: 'Flores y Detalles Lima',
+      vendor_name: VENDOR_NAME,
       order_id: orderData.orderId,
       customer_name: orderData.customerName || 'Cliente',
       customer_email: orderData.customerEmail,
       customer_phone: orderData.customerPhone || 'No proporcionado',
       customer_dni: orderData.customerDNI || 'No proporcionado',
       customer_address: orderData.customerAddress || 'No especificada',
-      customer_city: orderData.customerCity || 'No especificada',
+      customer_city: orderData.customerCity || 'Lima',
+      payment_method: orderData.paymentMethod || 'No especificado',
       payment_date: orderData.paymentDate,
       total_amount: orderData.total.toFixed(2),
       delivery_address: orderData.deliveryAddress || 'No especificada',
       delivery_date: orderData.deliveryDate || 'Por confirmar',
+      delivery_district: orderData.district || 'Lima',
       special_instructions: orderData.specialInstructions || 'Ninguna',
       // Destacar especialmente las notas de dedicatoria para el vendedor
       dedication_notes: orderData.specialInstructions && orderData.specialInstructions !== 'Ninguna' && orderData.specialInstructions.trim() !== ''
         ? `🌸 NOTAS DE DEDICATORIA/INSTRUCCIONES ESPECIALES:\n\n"${orderData.specialInstructions.trim()}"\n\n⚠️ IMPORTANTE: Estas notas deben incluirse en la tarjeta/dedicatoria del ramo.` 
         : 'Sin notas especiales para la dedicatoria',
-      // Versión limpia de las notas para uso general
       customer_notes: orderData.specialInstructions && orderData.specialInstructions.trim() !== '' 
         ? orderData.specialInstructions.trim() 
         : 'Ninguna',
@@ -157,16 +177,28 @@ export const sendVendorNotificationEmail = async (orderData: OrderEmailData): Pr
       date_value: orderData.deliveryDate || 'Por confirmar',
       time_label: orderData.shippingType === 'pickup' ? 'Horario de recojo' : 'Horario de entrega', 
       time_value: orderData.deliveryTimeSlot || 'Por confirmar',
-      // Fecha y hora combinadas para mejor visualización
       delivery_datetime: orderData.deliveryDate && orderData.deliveryTimeSlot 
         ? `${formatDeliveryDate(orderData.deliveryDate)} - ${orderData.deliveryTimeSlot}` 
         : 'Por confirmar',
       address_label: orderData.shippingType === 'pickup' ? 'El cliente recogerá en tienda' : 'Entregar en',
-      address_value: orderData.shippingType === 'pickup' ? 'Flores y Detalles Lima' : (orderData.deliveryAddress || 'No especificada'),
+      address_value: orderData.shippingType === 'pickup' ? VENDOR_NAME : (orderData.deliveryAddress || 'No especificada'),
       items_list: orderData.items.map(item => 
         `• ${item.name} - Cantidad: ${item.quantity} - Precio: S/ ${(parseFloat(String(item.price)) || 0).toFixed(2)}`
       ).join('\n'),
       items_count: orderData.items.length,
+      // Datos del destinatario (importantes para el vendedor)
+      recipient_name: orderData.recipientName || '',
+      recipient_phone: orderData.recipientPhone || '',
+      recipient_relationship: orderData.recipientRelationship || '',
+      delivery_notes: orderData.deliveryNotes || '',
+      google_maps_link: orderData.googleMapsLink || '',
+      has_recipient_info: !!(orderData.recipientName || orderData.recipientPhone || orderData.recipientRelationship),
+      recipient_info_detailed: orderData.recipientName 
+        ? `🎯 DATOS DEL DESTINATARIO:\n• Nombre: ${orderData.recipientName}${orderData.recipientPhone ? `\n• Teléfono: ${orderData.recipientPhone}` : ''}${orderData.recipientRelationship ? `\n• Relación: ${orderData.recipientRelationship}` : ''}${orderData.deliveryNotes ? `\n• Notas de entrega: ${orderData.deliveryNotes}` : ''}` 
+        : 'Sin información específica del destinatario',
+      location_info: orderData.googleMapsLink 
+        ? `📍 UBICACIÓN:\n• Dirección: ${orderData.deliveryAddress}\n• Google Maps: ${orderData.googleMapsLink}` 
+        : `📍 UBICACIÓN:\n• Dirección: ${orderData.deliveryAddress || 'No especificada'}`,
     };
 
     const result = await emailjs.send(
@@ -218,7 +250,7 @@ export const sendOrderConfirmationEmails = async (orderData: OrderEmailData): Pr
   }
 };
 
-// Función utilitaria para formatear la fecha
+// Función utilitaria para formatear la fecha de pago
 export const formatPaymentDate = (date: Date): string => {
   return new Intl.DateTimeFormat('es-PE', {
     year: 'numeric',

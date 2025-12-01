@@ -4,12 +4,13 @@ import {
   User, 
   Trophy, 
   GraduationCap, 
-  Flower2,
   Crown,
   HeartHandshake,
   Smile,
   Sun,
-  Ribbon
+  Ribbon,
+  Store,
+  Baby
 } from 'lucide-react';
 
 export interface Occasion {
@@ -115,31 +116,31 @@ export const occasions: Occasion[] = [
     heroDescription: 'Haz de tu boda un cuento de hadas con arreglos florales únicos que hagan de este día algo inolvidable.'
   },
   {
-    label: 'San Valentín',
-    value: 'san-valentin',
-    icon: Heart,
-    color: 'from-pink-300 to-rose-400',
-    backgroundImage: '/img/FondosParaOcasiones/FloresSanValentin.webp',
-    heroTitle: 'Flores para San Valentín',
-    heroSubtitle: 'Celebra el día del amor y la amistad',
-    heroDescription: 'Sorprende a tu ser querido con las flores más románticas en el día más especial del año.'
+    label: 'Institucional',
+    value: 'institucional',
+    icon: Crown,
+    color: 'from-blue-200 to-indigo-300',
+    backgroundImage: '/img/FondosParaOcasiones/FondoInstitucional.png',
+    heroTitle: 'Flores Institucionales',
+    heroSubtitle: 'Elegancia corporativa y profesional',
+    heroDescription: 'Arreglos florales elegantes y sofisticados para eventos corporativos, inauguraciones y celebraciones institucionales.'
   },
   {
-    label: 'Día de la Madre',
-    value: 'dia-madre',
-    icon: Flower2,
-    color: 'from-pink-200 to-rose-300',
-    backgroundImage: '/img/FondosParaOcasiones/FloresDiaDeLaMadre.webp',
-    heroTitle: 'Flores para el Día de la Madre',
-    heroSubtitle: 'Honra a la mujer más importante de tu vida',
-    heroDescription: 'Demuestra tu amor y gratitud hacia mamá con los arreglos florales más tiernos y especiales.'
+    label: 'Inauguraciones',
+    value: 'inauguraciones',
+    icon: Store,
+    color: 'from-purple-200 to-pink-300',
+    backgroundImage: '/img/FondosParaOcasiones/inauguracion.webp',
+    heroTitle: 'Flores para Inauguraciones',
+    heroSubtitle: 'Celebra nuevos comienzos y proyectos',
+    heroDescription: 'Arreglos florales elegantes para inauguraciones de negocios, oficinas y locales. Da la bienvenida al éxito con las flores perfectas.'
   },
   {
     label: 'Lágrimas de Piso',
     value: 'lagrimas-piso',
     icon: Ribbon,
     color: 'from-gray-100 to-gray-200',
-    backgroundImage: '/img/FondosParaOcasiones/FloresDeCondolencias.webp',
+    backgroundImage: '/img/FondosParaOcasiones/FloresCondolencias.webp',
     heroTitle: 'Lágrimas de Piso',
     heroSubtitle: 'Arreglos elegantes en el suelo',
     heroDescription: 'Arreglos florales elegantes colocados en el suelo para momentos de duelo y recordación.'
@@ -149,7 +150,7 @@ export const occasions: Occasion[] = [
     value: 'mantos-especiales',
     icon: Ribbon,
     color: 'from-gray-100 to-gray-200',
-    backgroundImage: '/img/FondosParaOcasiones/FloresDeCondolencias.webp',
+    backgroundImage: '/img/FondosParaOcasiones/FloresCondolencias.webp',
     heroTitle: 'Mantos Especiales',
     heroSubtitle: 'Coberturas florales únicas',
     heroDescription: 'Coberturas florales con diseños únicos y significativos para honrar y recordar.'
@@ -159,7 +160,7 @@ export const occasions: Occasion[] = [
     value: 'coronas',
     icon: Crown,
     color: 'from-gray-100 to-gray-200',
-    backgroundImage: '/img/FondosParaOcasiones/FloresDeCondolencias.webp',
+    backgroundImage: '/img/FondosParaOcasiones/FloresCondolencias.webp',
     heroTitle: 'Coronas',
     heroSubtitle: 'Coronas tradicionales',
     heroDescription: 'Coronas florales tradicionales para honrar y recordar a quienes partieron.'
@@ -169,7 +170,7 @@ export const occasions: Occasion[] = [
     value: 'tripodes',
     icon: Ribbon,
     color: 'from-gray-100 to-gray-200',
-    backgroundImage: '/img/FondosParaOcasiones/FloresDeCondolencias.webp',
+    backgroundImage: '/img/FondosParaOcasiones/FloresCondolencias.webp',
     heroTitle: 'Trípodes',
     heroSubtitle: 'Arreglos en trípodes elegantes',
     heroDescription: 'Arreglos florales montados en estructura de trípode para ceremonias especiales.'
@@ -179,10 +180,30 @@ export const occasions: Occasion[] = [
     value: 'solo-porque-si',
     icon: Smile,
     color: 'from-pink-100 to-rose-200',
-    backgroundImage: '/img/FondosParaOcasiones/FloresDeAMor.webp', // Usando imagen de amor como fallback
+    backgroundImage: '/img/FondosParaOcasiones/FloresDeAMor.webp',
     heroTitle: 'Flores Solo Porque Sí',
     heroSubtitle: 'Los gestos espontáneos son los más hermosos',
     heroDescription: 'Sorprende con un gesto espontáneo de cariño. No necesitas una ocasión especial para alegrar el día de alguien.'
+  },
+  {
+    label: 'Condolencias',
+    value: 'condolencias',
+    icon: Ribbon,
+    color: 'from-gray-100 to-gray-300',
+    backgroundImage: '/img/FondosParaOcasiones/FloresCondolencias.webp',
+    heroTitle: 'Condolencias',
+    heroSubtitle: 'Acompañamos en momentos difíciles',
+    heroDescription: 'Expresamos nuestro pésame y apoyo con arreglos florales respetuosos: coronas, ramos, lágrimas de piso y trípodes.'
+  },
+  {
+    label: 'Nacimiento',
+    value: 'nacimiento',
+    icon: Baby,
+    color: 'from-blue-100 to-pink-200',
+    backgroundImage: '/img/FondosParaOcasiones/FondoNacimiento.png',
+    heroTitle: 'Flores para Nacimiento',
+    heroSubtitle: 'Celebra la llegada de una nueva vida',
+    heroDescription: 'Dale la bienvenida al nuevo miembro de la familia con hermosos arreglos florales que expresan toda tu alegría.'
   }
 ];
 
@@ -216,7 +237,7 @@ export const condolenciasOccasions: Occasion[] = [
   occasions.find(o => o.value === 'tripodes')!
 ];
 
-// Ocasiones regulares (sin condolencias)
+// Ocasiones regulares (sin las subcategorías de condolencias)
 export const regularOccasions: Occasion[] = occasions.filter(o => 
   !['lagrimas-piso', 'mantos-especiales', 'coronas', 'tripodes'].includes(o.value)
 );
